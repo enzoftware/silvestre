@@ -229,6 +229,7 @@ mod tests {
         let loaded = SilvestreImage::load(&path).unwrap();
         assert_eq!(loaded.width(), 2);
         assert_eq!(loaded.height(), 2);
+        assert_eq!(loaded.color_space(), ColorSpace::Rgba);
         assert_eq!(loaded.pixels(), img.pixels());
 
         std::fs::remove_file(&path).ok();
