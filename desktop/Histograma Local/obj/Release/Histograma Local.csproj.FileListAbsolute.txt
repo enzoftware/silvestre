@@ -1,9 +1,0 @@
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\bin\Release\Histograma Local.exe.config
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\bin\Release\Histograma Local.exe
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\bin\Release\Histograma Local.pdb
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma_Local.Form1.resources
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma_Local.Properties.Resources.resources
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma Local.csproj.GenerateResource.Cache
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma Local.exe
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma Local.pdb
-C:\Users\adolf\Desktop\Computacional\Histograma Local\Histograma Local\obj\Release\Histograma Local.csprojResolveAssemblyReference.cache
