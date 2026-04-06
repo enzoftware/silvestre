@@ -6,6 +6,7 @@ use image::{DynamicImage, GenericImageView, ImageFormat as CrateImageFormat};
 use crate::{ColorSpace, Result, SilvestreError, SilvestreImage};
 
 /// Supported image file formats for loading and saving.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
     Png,
