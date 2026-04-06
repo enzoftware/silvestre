@@ -1,4 +1,6 @@
-Implement GitHub issue #$ARGUMENTS following these steps:
+# Implement GitHub issue #$ARGUMENTS
+
+Follow these steps:
 
 1. **Read the issue**: Fetch the full issue details using `gh issue view $ARGUMENTS`.
 

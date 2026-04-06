@@ -6,6 +6,7 @@ use image::{DynamicImage, GenericImageView, ImageFormat as CrateImageFormat};
 use crate::{ColorSpace, Result, SilvestreError, SilvestreImage};
 
 /// Supported image file formats for loading and saving.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
     Png,
@@ -221,6 +222,7 @@ mod tests {
         let loaded = SilvestreImage::load(&path).unwrap();
         assert_eq!(loaded.width(), 2);
         assert_eq!(loaded.height(), 2);
+        assert_eq!(loaded.color_space(), ColorSpace::Rgba);
         assert_eq!(loaded.pixels(), img.pixels());
     }
 
