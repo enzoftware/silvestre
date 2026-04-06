@@ -1,0 +1,11 @@
+[package]
+name = "silvestre-cli"
+description = "Command-line interface for silvestre image processing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+silvestre-core = { workspace = true }
+clap = { version = "4", features = ["derive"] }
