@@ -9,6 +9,7 @@ mod io;
 
 pub use error::SilvestreError;
 pub use image::{ColorSpace, SilvestreImage};
+pub use io::ImageFormat;
 
 /// Result type alias for silvestre operations.
 pub type Result<T> = std::result::Result<T, SilvestreError>;
