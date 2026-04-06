@@ -40,7 +40,10 @@ impl SilvestreImage {
             .and_then(|v| v.checked_mul(color_space.channels()))
             .ok_or(SilvestreError::InvalidDimensions { width, height })?;
         if pixels.len() != expected {
-            return Err(SilvestreError::InvalidDimensions { width, height });
+            return Err(SilvestreError::BufferSizeMismatch {
+                expected,
+                got: pixels.len(),
+            });
         }
         Ok(Self {
             pixels,
@@ -91,28 +94,59 @@ impl SilvestreImage {
         &mut self.pixels
     }
 
+    /// Create a new image from raw pixel data.
+    ///
+    /// This is an alias for [`SilvestreImage::new`] provided for clarity
+    /// when constructing an image from an existing pixel buffer.
+    pub fn from_raw_pixels(
+        pixels: Vec<u8>,
+        width: u32,
+        height: u32,
+        color_space: ColorSpace,
+    ) -> Result<Self> {
+        Self::new(pixels, width, height, color_space)
+    }
+
     /// Get the pixel value at (x, y) as a slice of channels.
     ///
-    /// # Panics
-    /// Panics if (x, y) is out of bounds.
-    #[must_use]
-    pub fn pixel(&self, x: u32, y: u32) -> &[u8] {
-        assert!(x < self.width && y < self.height, "pixel coordinates out of bounds");
+    /// Returns an error if (x, y) is out of bounds.
+    pub fn get_pixel(&self, x: u32, y: u32) -> Result<&[u8]> {
+        if x >= self.width || y >= self.height {
+            return Err(SilvestreError::OutOfBounds {
+                x,
+                y,
+                width: self.width,
+                height: self.height,
+            });
+        }
         let channels = self.color_space.channels();
         let offset = (y as usize * self.width as usize + x as usize) * channels;
-        &self.pixels[offset..offset + channels]
+        Ok(&self.pixels[offset..offset + channels])
     }
 
     /// Set the pixel value at (x, y).
     ///
-    /// # Panics
-    /// Panics if (x, y) is out of bounds or `value.len()` does not match the channel count.
-    pub fn set_pixel(&mut self, x: u32, y: u32, value: &[u8]) {
-        assert!(x < self.width && y < self.height, "pixel coordinates out of bounds");
+    /// Returns an error if (x, y) is out of bounds or if the value length
+    /// does not match the number of channels for this image's color space.
+    pub fn set_pixel(&mut self, x: u32, y: u32, value: &[u8]) -> Result<()> {
+        if x >= self.width || y >= self.height {
+            return Err(SilvestreError::OutOfBounds {
+                x,
+                y,
+                width: self.width,
+                height: self.height,
+            });
+        }
         let channels = self.color_space.channels();
-        assert_eq!(value.len(), channels);
+        if value.len() != channels {
+            return Err(SilvestreError::ChannelMismatch {
+                expected: channels,
+                got: value.len(),
+            });
+        }
         let offset = (y as usize * self.width as usize + x as usize) * channels;
         self.pixels[offset..offset + channels].copy_from_slice(value);
+        Ok(())
     }
 }
 
@@ -130,17 +164,99 @@ mod tests {
     }
 
     #[test]
+    fn create_rgb_image() {
+        let img = SilvestreImage::new(vec![0; 3 * 3 * 2], 3, 2, ColorSpace::Rgb).unwrap();
+        assert_eq!(img.width(), 3);
+        assert_eq!(img.height(), 2);
+        assert_eq!(img.color_space(), ColorSpace::Rgb);
+        assert_eq!(img.pixels().len(), 18);
+    }
+
+    #[test]
+    fn create_grayscale_image() {
+        let img = SilvestreImage::new(vec![0; 4 * 4], 4, 4, ColorSpace::Grayscale).unwrap();
+        assert_eq!(img.color_space(), ColorSpace::Grayscale);
+        assert_eq!(img.pixels().len(), 16);
+    }
+
+    #[test]
     fn create_image_invalid_size() {
         let result = SilvestreImage::new(vec![0; 5], 2, 2, ColorSpace::Rgba);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(SilvestreError::BufferSizeMismatch { expected: 16, got: 5 })
+        ));
+    }
+
+    #[test]
+    fn create_image_zero_dimensions() {
+        let result = SilvestreImage::new(vec![], 0, 0, ColorSpace::Rgba);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn from_raw_pixels_constructs_correctly() {
+        let pixels = vec![255, 0, 0, 255, 0, 255, 0, 255];
+        let img = SilvestreImage::from_raw_pixels(pixels.clone(), 2, 1, ColorSpace::Rgba).unwrap();
+        assert_eq!(img.width(), 2);
+        assert_eq!(img.height(), 1);
+        assert_eq!(img.pixels(), &pixels);
+    }
+
+    #[test]
+    fn from_raw_pixels_rejects_invalid_buffer() {
+        let result = SilvestreImage::from_raw_pixels(vec![0; 7], 2, 1, ColorSpace::Rgba);
+        assert!(matches!(
+            result,
+            Err(SilvestreError::BufferSizeMismatch { expected: 8, got: 7 })
+        ));
     }
 
     #[test]
     fn pixel_access() {
         let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgb);
-        img.set_pixel(1, 0, &[255, 128, 64]);
-        assert_eq!(img.pixel(1, 0), &[255, 128, 64]);
-        assert_eq!(img.pixel(0, 0), &[0, 0, 0]);
+        img.set_pixel(1, 0, &[255, 128, 64]).unwrap();
+        assert_eq!(img.get_pixel(1, 0).unwrap(), &[255, 128, 64]);
+        assert_eq!(img.get_pixel(0, 0).unwrap(), &[0, 0, 0]);
+    }
+
+    #[test]
+    fn get_pixel_out_of_bounds() {
+        let img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
+        assert!(matches!(
+            img.get_pixel(2, 0),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.get_pixel(0, 2),
+            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.get_pixel(2, 2),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 2, width: 2, height: 2 })
+        ));
+    }
+
+    #[test]
+    fn set_pixel_out_of_bounds() {
+        let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
+        assert!(matches!(
+            img.set_pixel(2, 0, &[0, 0, 0, 0]),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.set_pixel(0, 2, &[0, 0, 0, 0]),
+            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+        ));
+    }
+
+    #[test]
+    fn set_pixel_wrong_channel_count() {
+        let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
+        assert!(matches!(
+            img.set_pixel(0, 0, &[0, 0, 0]),
+            Err(SilvestreError::ChannelMismatch { expected: 4, got: 3 })
+        ));
     }
 
     #[test]
@@ -148,5 +264,23 @@ mod tests {
         let img = SilvestreImage::zeroed(10, 10, ColorSpace::Grayscale);
         assert_eq!(img.pixels().len(), 100);
         assert!(img.pixels().iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn color_space_channels() {
+        assert_eq!(ColorSpace::Rgba.channels(), 4);
+        assert_eq!(ColorSpace::Rgb.channels(), 3);
+        assert_eq!(ColorSpace::Grayscale.channels(), 1);
+    }
+
+    #[test]
+    fn pixels_mut_allows_direct_modification() {
+        let mut img = SilvestreImage::zeroed(1, 1, ColorSpace::Rgba);
+        let data = img.pixels_mut();
+        data[0] = 255;
+        data[1] = 128;
+        data[2] = 64;
+        data[3] = 32;
+        assert_eq!(img.get_pixel(0, 0).unwrap(), &[255, 128, 64, 32]);
     }
 }
