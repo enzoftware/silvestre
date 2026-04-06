@@ -1,0 +1,19 @@
+[package]
+name = "silvestre-core"
+description = "Cross-platform image processing library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+image = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = "1"
+criterion = "0.5"
+
+[[bench]]
+name = "filters"
+harness = false

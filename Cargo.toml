@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/silvestre-core",
+    "crates/silvestre-ffi",
+    "crates/silvestre-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/enzoftware/silvestre"
+
+[workspace.dependencies]
+silvestre-core = { path = "crates/silvestre-core" }
+image = "0.25"
+thiserror = "2"
