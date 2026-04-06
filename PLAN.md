@@ -56,54 +56,53 @@ Spiritual successor to the original Java/C# college project, rebuilt from scratc
 
 ## Repository Structure
 
-```
+```text
 silvestre/
 ├── Cargo.toml                  # Workspace root
 ├── PLAN.md
 ├── README.md
 │
-├── crates/
-│   ├── silvestre-core/         # Pure Rust image processing library
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── image.rs        # Core image buffer type
-│   │       ├── io.rs           # Image encoding/decoding
-│   │       ├── filters/        # Convolution & spatial filters
-│   │       │   ├── mod.rs
-│   │       │   ├── canny.rs
-│   │       │   ├── median.rs
-│   │       │   ├── gaussian.rs
-│   │       │   ├── sobel.rs
-│   │       │   ├── sharpen.rs
-│   │       │   └── box_blur.rs
-│   │       ├── effects/        # Color/pixel-level effects
-│   │       │   ├── mod.rs
-│   │       │   ├── grayscale.rs
-│   │       │   ├── sepia.rs
-│   │       │   ├── invert.rs
-│   │       │   ├── brightness.rs
-│   │       │   └── contrast.rs
-│   │       ├── transform/      # Geometric transformations
-│   │       │   ├── mod.rs
-│   │       │   ├── resize.rs
-│   │       │   ├── rotate.rs
-│   │       │   ├── mirror.rs
-│   │       │   └── crop.rs
-│   │       └── analysis/       # Image analysis tools
-│   │           ├── mod.rs
-│   │           └── histogram.rs
-│   │
-│   ├── silvestre-ffi/          # C-ABI foreign function interface
-│   │   ├── Cargo.toml
-│   │   ├── cbindgen.toml       # Auto-generates C headers
-│   │   └── src/
-│   │       └── lib.rs          # extern "C" functions
-│   │
-│   └── silvestre-cli/          # Command-line interface
-│       ├── Cargo.toml
-│       └── src/
-│           └── main.rs
+├── silvestre-core/             # Pure Rust image processing library
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── image.rs            # Core image buffer type
+│       ├── io.rs               # Image encoding/decoding
+│       ├── filters/            # Convolution & spatial filters
+│       │   ├── mod.rs
+│       │   ├── canny.rs
+│       │   ├── median.rs
+│       │   ├── gaussian.rs
+│       │   ├── sobel.rs
+│       │   ├── sharpen.rs
+│       │   └── box_blur.rs
+│       ├── effects/            # Color/pixel-level effects
+│       │   ├── mod.rs
+│       │   ├── grayscale.rs
+│       │   ├── sepia.rs
+│       │   ├── invert.rs
+│       │   ├── brightness.rs
+│       │   └── contrast.rs
+│       ├── transform/          # Geometric transformations
+│       │   ├── mod.rs
+│       │   ├── resize.rs
+│       │   ├── rotate.rs
+│       │   ├── mirror.rs
+│       │   └── crop.rs
+│       └── analysis/           # Image analysis tools
+│           ├── mod.rs
+│           └── histogram.rs
+│
+├── silvestre-ffi/              # C-ABI foreign function interface
+│   ├── Cargo.toml
+│   ├── cbindgen.toml           # Auto-generates C headers
+│   └── src/
+│       └── lib.rs              # extern "C" functions
+│
+├── silvestre-cli/              # Command-line interface
+│   ├── Cargo.toml
+│   └── src/
+│       └── main.rs
 │
 ├── silvestre-wasm/             # WebAssembly bindings
 │   ├── Cargo.toml
@@ -300,20 +299,20 @@ criterion = "0.5"      # Benchmarking
 
 # silvestre-ffi
 [dependencies]
-silvestre-core = { path = "../silvestre-core" }
+silvestre-core = { workspace = true }
 
 [build-dependencies]
 cbindgen = "0.27"
 
 # silvestre-cli
 [dependencies]
-silvestre-core = { path = "../silvestre-core" }
+silvestre-core = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.17"     # Progress bars
 
 # silvestre-wasm
 [dependencies]
-silvestre-core = { path = "../../crates/silvestre-core" }
+silvestre-core = { workspace = true }
 wasm-bindgen = "0.2"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["ImageData"] }

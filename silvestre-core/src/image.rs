@@ -35,7 +35,10 @@ impl SilvestreImage {
     /// Returns an error if the buffer length does not match
     /// `width * height * color_space.channels()`.
     pub fn new(pixels: Vec<u8>, width: u32, height: u32, color_space: ColorSpace) -> Result<Self> {
-        let expected = width as usize * height as usize * color_space.channels();
+        let expected = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|v| v.checked_mul(color_space.channels()))
+            .ok_or(SilvestreError::InvalidDimensions { width, height })?;
         if pixels.len() != expected {
             return Err(SilvestreError::InvalidDimensions { width, height });
         }
@@ -50,7 +53,10 @@ impl SilvestreImage {
     /// Create an image filled with zeros.
     #[must_use]
     pub fn zeroed(width: u32, height: u32, color_space: ColorSpace) -> Self {
-        let len = width as usize * height as usize * color_space.channels();
+        let len = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|v| v.checked_mul(color_space.channels()))
+            .expect("image dimensions overflow");
         Self {
             pixels: vec![0; len],
             width,
@@ -91,6 +97,7 @@ impl SilvestreImage {
     /// Panics if (x, y) is out of bounds.
     #[must_use]
     pub fn pixel(&self, x: u32, y: u32) -> &[u8] {
+        assert!(x < self.width && y < self.height, "pixel coordinates out of bounds");
         let channels = self.color_space.channels();
         let offset = (y as usize * self.width as usize + x as usize) * channels;
         &self.pixels[offset..offset + channels]
@@ -101,6 +108,7 @@ impl SilvestreImage {
     /// # Panics
     /// Panics if (x, y) is out of bounds or `value.len()` does not match the channel count.
     pub fn set_pixel(&mut self, x: u32, y: u32, value: &[u8]) {
+        assert!(x < self.width && y < self.height, "pixel coordinates out of bounds");
         let channels = self.color_space.channels();
         assert_eq!(value.len(), channels);
         let offset = (y as usize * self.width as usize + x as usize) * channels;

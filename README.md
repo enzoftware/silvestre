@@ -8,7 +8,7 @@ Run the same filters natively on **CLI**, **Android**, **iOS**, **Flutter**, and
 
 ## Architecture
 
-```
+```text
  CLI    Flutter    iOS     Web    Android
   │    (dart:ffi)  (C FFI) (WASM) (JNI/NDK)
   │        │         │       │       │
@@ -24,28 +24,32 @@ Run the same filters natively on **CLI**, **Android**, **iOS**, **Flutter**, and
 ## Features
 
 ### Filters
+
 Canny edge detection, Median, Gaussian blur, Sobel, Sharpen, Box blur
 
 ### Effects
+
 Grayscale, Sepia, Invert, Brightness, Contrast
 
 ### Transforms
+
 Resize (nearest-neighbor & bilinear), Rotate, Mirror/Flip, Crop
 
 ### Analysis
+
 Histogram computation, Image statistics
 
 ### Image I/O
+
 PNG, JPEG, BMP, WebP &mdash; load and save via the [`image`](https://crates.io/crates/image) crate
 
 ## Project Structure
 
-```
+```text
 silvestre/
-├── crates/
-│   ├── silvestre-core/    # Pure Rust image processing library
-│   ├── silvestre-ffi/     # C ABI foreign function interface
-│   └── silvestre-cli/     # Command-line tool
+├── silvestre-core/        # Pure Rust image processing library
+├── silvestre-ffi/         # C ABI foreign function interface
+├── silvestre-cli/         # Command-line tool
 ├── silvestre-wasm/        # WebAssembly bindings (planned)
 ├── silvestre-flutter/     # Flutter package via flutter_rust_bridge (planned)
 └── tests/
