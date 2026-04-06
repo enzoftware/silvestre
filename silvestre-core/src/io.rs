@@ -45,18 +45,16 @@ impl ImageFormat {
 /// original color space when possible.
 fn dynamic_to_silvestre(img: DynamicImage) -> Result<SilvestreImage> {
     let (width, height) = img.dimensions();
-    match &img {
-        DynamicImage::ImageLuma8(_) => {
-            let gray = img.into_luma8();
+    match img {
+        DynamicImage::ImageLuma8(gray) => {
             SilvestreImage::new(gray.into_raw(), width, height, ColorSpace::Grayscale)
         }
-        DynamicImage::ImageRgb8(_) => {
-            let rgb = img.into_rgb8();
+        DynamicImage::ImageRgb8(rgb) => {
             SilvestreImage::new(rgb.into_raw(), width, height, ColorSpace::Rgb)
         }
-        _ => {
+        other => {
             // Everything else (RGBA, 16-bit, palette, etc.) → RGBA8
-            let rgba = img.into_rgba8();
+            let rgba = other.into_rgba8();
             SilvestreImage::new(rgba.into_raw(), width, height, ColorSpace::Rgba)
         }
     }
@@ -85,9 +83,24 @@ impl SilvestreImage {
     ///
     /// The format is used directly rather than being inferred from the
     /// file extension, so the extension and format need not match.
+    /// Writes are streamed through a `BufWriter` to avoid buffering the
+    /// entire encoded image in memory.
     pub fn save_with_format(&self, path: impl AsRef<Path>, format: ImageFormat) -> Result<()> {
-        let bytes = self.encode_to_memory(format)?;
-        std::fs::write(path, &bytes)?;
+        let color_type = match self.color_space() {
+            ColorSpace::Rgba => image::ColorType::Rgba8,
+            ColorSpace::Rgb => image::ColorType::Rgb8,
+            ColorSpace::Grayscale => image::ColorType::L8,
+        };
+        let file = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        image::write_buffer_with_format(
+            &mut writer,
+            self.pixels(),
+            self.width(),
+            self.height(),
+            color_type,
+            format.to_crate_format(),
+        )?;
         Ok(())
     }
 
@@ -274,7 +287,7 @@ mod tests {
 
     #[test]
     fn load_missing_file() {
-        let result = SilvestreImage::load("/tmp/silvestre_does_not_exist.png");
+        let result = SilvestreImage::load(temp_path("does_not_exist.png"));
         assert!(result.is_err());
     }
 
