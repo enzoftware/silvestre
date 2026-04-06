@@ -61,6 +61,15 @@ fn dynamic_to_silvestre(img: DynamicImage) -> Result<SilvestreImage> {
 }
 
 impl SilvestreImage {
+    /// Map the image's color space to the corresponding `image::ColorType`.
+    fn to_image_color_type(&self) -> image::ColorType {
+        match self.color_space() {
+            ColorSpace::Rgba => image::ColorType::Rgba8,
+            ColorSpace::Rgb => image::ColorType::Rgb8,
+            ColorSpace::Grayscale => image::ColorType::L8,
+        }
+    }
+
     /// Load an image from a file path.
     ///
     /// The color space is preserved when the source is Grayscale or RGB;
@@ -86,11 +95,7 @@ impl SilvestreImage {
     /// Writes are streamed through a `BufWriter` to avoid buffering the
     /// entire encoded image in memory.
     pub fn save_with_format(&self, path: impl AsRef<Path>, format: ImageFormat) -> Result<()> {
-        let color_type = match self.color_space() {
-            ColorSpace::Rgba => image::ColorType::Rgba8,
-            ColorSpace::Rgb => image::ColorType::Rgb8,
-            ColorSpace::Grayscale => image::ColorType::L8,
-        };
+        let color_type = self.to_image_color_type();
         let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
         image::write_buffer_with_format(
@@ -114,11 +119,7 @@ impl SilvestreImage {
 
     /// Encode the image into an in-memory byte buffer in the given format.
     pub fn encode_to_memory(&self, format: ImageFormat) -> Result<Vec<u8>> {
-        let color_type = match self.color_space() {
-            ColorSpace::Rgba => image::ColorType::Rgba8,
-            ColorSpace::Rgb => image::ColorType::Rgb8,
-            ColorSpace::Grayscale => image::ColorType::L8,
-        };
+        let color_type = self.to_image_color_type();
         let mut buf = Cursor::new(Vec::new());
         image::write_buffer_with_format(
             &mut buf,
@@ -135,7 +136,6 @@ impl SilvestreImage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     /// Helper: create a small 2×2 RGBA test image with known pixel values.
     fn test_image_rgba() -> SilvestreImage {
@@ -167,17 +167,13 @@ mod tests {
         SilvestreImage::new(pixels, 2, 2, ColorSpace::Grayscale).unwrap()
     }
 
-    /// Helper: get a temporary file path with the given extension.
-    fn temp_path(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("silvestre_test_{name}"))
-    }
-
     // ── Round-trip tests (lossless formats) ─────────────────────────
 
     #[test]
     fn round_trip_png_rgba() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("round_trip.png");
         let img = test_image_rgba();
-        let path = temp_path("round_trip.png");
         img.save(&path).unwrap();
 
         let loaded = SilvestreImage::load(&path).unwrap();
@@ -185,14 +181,13 @@ mod tests {
         assert_eq!(loaded.height(), 2);
         assert_eq!(loaded.color_space(), ColorSpace::Rgba);
         assert_eq!(loaded.pixels(), img.pixels());
-
-        std::fs::remove_file(&path).ok();
     }
 
     #[test]
     fn round_trip_png_rgb() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("round_trip_rgb.png");
         let img = test_image_rgb();
-        let path = temp_path("round_trip_rgb.png");
         img.save(&path).unwrap();
 
         let loaded = SilvestreImage::load(&path).unwrap();
@@ -200,14 +195,13 @@ mod tests {
         assert_eq!(loaded.height(), 2);
         assert_eq!(loaded.color_space(), ColorSpace::Rgb);
         assert_eq!(loaded.pixels(), img.pixels());
-
-        std::fs::remove_file(&path).ok();
     }
 
     #[test]
     fn round_trip_png_grayscale() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("round_trip_gray.png");
         let img = test_image_grayscale();
-        let path = temp_path("round_trip_gray.png");
         img.save(&path).unwrap();
 
         let loaded = SilvestreImage::load(&path).unwrap();
@@ -215,38 +209,34 @@ mod tests {
         assert_eq!(loaded.height(), 2);
         assert_eq!(loaded.color_space(), ColorSpace::Grayscale);
         assert_eq!(loaded.pixels(), img.pixels());
-
-        std::fs::remove_file(&path).ok();
     }
 
     #[test]
     fn round_trip_bmp() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("round_trip.bmp");
         let img = test_image_rgba();
-        let path = temp_path("round_trip.bmp");
         img.save(&path).unwrap();
 
         let loaded = SilvestreImage::load(&path).unwrap();
         assert_eq!(loaded.width(), 2);
         assert_eq!(loaded.height(), 2);
         assert_eq!(loaded.pixels(), img.pixels());
-
-        std::fs::remove_file(&path).ok();
     }
 
     // ── JPEG (lossy — only check dimensions) ────────────────────────
 
     #[test]
     fn save_and_load_jpeg() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.jpg");
         let img = test_image_rgb();
-        let path = temp_path("test.jpg");
         img.save(&path).unwrap();
 
         let loaded = SilvestreImage::load(&path).unwrap();
         assert_eq!(loaded.width(), 2);
         assert_eq!(loaded.height(), 2);
         // JPEG is lossy so we don't compare pixel data.
-
-        std::fs::remove_file(&path).ok();
     }
 
     // ── In-memory round-trips ───────────────────────────────────────
@@ -287,7 +277,8 @@ mod tests {
 
     #[test]
     fn load_missing_file() {
-        let result = SilvestreImage::load(temp_path("does_not_exist.png"));
+        let dir = tempfile::tempdir().unwrap();
+        let result = SilvestreImage::load(dir.path().join("does_not_exist.png"));
         assert!(result.is_err());
     }
 
@@ -299,8 +290,9 @@ mod tests {
 
     #[test]
     fn save_unsupported_extension() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.xyz");
         let img = test_image_rgba();
-        let path = temp_path("test.xyz");
         let result = img.save(&path);
         assert!(result.is_err());
     }
