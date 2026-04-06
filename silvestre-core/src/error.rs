@@ -12,6 +12,9 @@ pub enum SilvestreError {
     #[error("invalid dimensions: {width}x{height}")]
     InvalidDimensions { width: u32, height: u32 },
 
+    #[error("raw pixel buffer size mismatch: expected {expected} bytes, got {got}")]
+    BufferSizeMismatch { expected: usize, got: usize },
+
     #[error("pixel coordinates out of bounds: ({x}, {y}) in {width}x{height} image")]
     OutOfBounds { x: u32, y: u32, width: u32, height: u32 },
 

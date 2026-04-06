@@ -40,7 +40,10 @@ impl SilvestreImage {
             .and_then(|v| v.checked_mul(color_space.channels()))
             .ok_or(SilvestreError::InvalidDimensions { width, height })?;
         if pixels.len() != expected {
-            return Err(SilvestreError::InvalidDimensions { width, height });
+            return Err(SilvestreError::BufferSizeMismatch {
+                expected,
+                got: pixels.len(),
+            });
         }
         Ok(Self {
             pixels,
@@ -179,7 +182,10 @@ mod tests {
     #[test]
     fn create_image_invalid_size() {
         let result = SilvestreImage::new(vec![0; 5], 2, 2, ColorSpace::Rgba);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(SilvestreError::BufferSizeMismatch { expected: 16, got: 5 })
+        ));
     }
 
     #[test]
@@ -200,7 +206,10 @@ mod tests {
     #[test]
     fn from_raw_pixels_rejects_invalid_buffer() {
         let result = SilvestreImage::from_raw_pixels(vec![0; 7], 2, 1, ColorSpace::Rgba);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(SilvestreError::BufferSizeMismatch { expected: 8, got: 7 })
+        ));
     }
 
     #[test]
@@ -214,22 +223,40 @@ mod tests {
     #[test]
     fn get_pixel_out_of_bounds() {
         let img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
-        assert!(img.get_pixel(2, 0).is_err());
-        assert!(img.get_pixel(0, 2).is_err());
-        assert!(img.get_pixel(2, 2).is_err());
+        assert!(matches!(
+            img.get_pixel(2, 0),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.get_pixel(0, 2),
+            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.get_pixel(2, 2),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 2, width: 2, height: 2 })
+        ));
     }
 
     #[test]
     fn set_pixel_out_of_bounds() {
         let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
-        assert!(img.set_pixel(2, 0, &[0, 0, 0, 0]).is_err());
-        assert!(img.set_pixel(0, 2, &[0, 0, 0, 0]).is_err());
+        assert!(matches!(
+            img.set_pixel(2, 0, &[0, 0, 0, 0]),
+            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+        ));
+        assert!(matches!(
+            img.set_pixel(0, 2, &[0, 0, 0, 0]),
+            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+        ));
     }
 
     #[test]
     fn set_pixel_wrong_channel_count() {
         let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
-        assert!(img.set_pixel(0, 0, &[0, 0, 0]).is_err()); // 3 channels for RGBA
+        assert!(matches!(
+            img.set_pixel(0, 0, &[0, 0, 0]),
+            Err(SilvestreError::ChannelMismatch { expected: 4, got: 3 })
+        ));
     }
 
     #[test]
