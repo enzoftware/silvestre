@@ -519,6 +519,40 @@ fn mirror(coord: i64, size: i64) -> i64 {
     m
 }
 
+/// Resolve a possibly out-of-bounds pixel coordinate according to `border`.
+///
+/// Returns `Some((x, y))` with the in-bounds source coordinate to read from,
+/// or `None` when `border` is [`BorderMode::Zero`] and the requested
+/// coordinate is outside the image (the caller should treat that sample as
+/// zero). `width` and `height` must be positive.
+///
+/// This helper exists so that non-convolution spatial filters (e.g. the
+/// median filter) can share the exact same edge-handling semantics as
+/// [`apply_kernel`].
+pub(crate) fn resolve_coord(
+    x: i64,
+    y: i64,
+    width: u32,
+    height: u32,
+    border: BorderMode,
+) -> Option<(usize, usize)> {
+    debug_assert!(width > 0, "width must be positive");
+    debug_assert!(height > 0, "height must be positive");
+    let w = width as i64;
+    let h = height as i64;
+    let (sx, sy) = match border {
+        BorderMode::Zero => {
+            if x < 0 || x >= w || y < 0 || y >= h {
+                return None;
+            }
+            (x, y)
+        }
+        BorderMode::Clamp => (x.clamp(0, w - 1), y.clamp(0, h - 1)),
+        BorderMode::Mirror => (mirror(x, w), mirror(y, h)),
+    };
+    Some((sx as usize, sy as usize))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
