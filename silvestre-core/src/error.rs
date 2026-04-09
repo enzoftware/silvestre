@@ -16,7 +16,12 @@ pub enum SilvestreError {
     BufferSizeMismatch { expected: usize, got: usize },
 
     #[error("pixel coordinates out of bounds: ({x}, {y}) in {width}x{height} image")]
-    OutOfBounds { x: u32, y: u32, width: u32, height: u32 },
+    OutOfBounds {
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    },
 
     #[error("unsupported color space: {0:?}")]
     UnsupportedColorSpace(crate::ColorSpace),

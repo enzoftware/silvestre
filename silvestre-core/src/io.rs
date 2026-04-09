@@ -301,10 +301,22 @@ mod tests {
 
     #[test]
     fn image_format_from_extension() {
-        assert_eq!(ImageFormat::from_extension(Path::new("a.png")).unwrap(), ImageFormat::Png);
-        assert_eq!(ImageFormat::from_extension(Path::new("a.jpg")).unwrap(), ImageFormat::Jpeg);
-        assert_eq!(ImageFormat::from_extension(Path::new("a.jpeg")).unwrap(), ImageFormat::Jpeg);
-        assert_eq!(ImageFormat::from_extension(Path::new("a.bmp")).unwrap(), ImageFormat::Bmp);
+        assert_eq!(
+            ImageFormat::from_extension(Path::new("a.png")).unwrap(),
+            ImageFormat::Png
+        );
+        assert_eq!(
+            ImageFormat::from_extension(Path::new("a.jpg")).unwrap(),
+            ImageFormat::Jpeg
+        );
+        assert_eq!(
+            ImageFormat::from_extension(Path::new("a.jpeg")).unwrap(),
+            ImageFormat::Jpeg
+        );
+        assert_eq!(
+            ImageFormat::from_extension(Path::new("a.bmp")).unwrap(),
+            ImageFormat::Bmp
+        );
         assert!(ImageFormat::from_extension(Path::new("a.tiff")).is_err());
         assert!(ImageFormat::from_extension(Path::new("no_ext")).is_err());
     }
