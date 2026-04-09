@@ -184,7 +184,10 @@ mod tests {
         let result = SilvestreImage::new(vec![0; 5], 2, 2, ColorSpace::Rgba);
         assert!(matches!(
             result,
-            Err(SilvestreError::BufferSizeMismatch { expected: 16, got: 5 })
+            Err(SilvestreError::BufferSizeMismatch {
+                expected: 16,
+                got: 5
+            })
         ));
     }
 
@@ -208,7 +211,10 @@ mod tests {
         let result = SilvestreImage::from_raw_pixels(vec![0; 7], 2, 1, ColorSpace::Rgba);
         assert!(matches!(
             result,
-            Err(SilvestreError::BufferSizeMismatch { expected: 8, got: 7 })
+            Err(SilvestreError::BufferSizeMismatch {
+                expected: 8,
+                got: 7
+            })
         ));
     }
 
@@ -225,15 +231,30 @@ mod tests {
         let img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
         assert!(matches!(
             img.get_pixel(2, 0),
-            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+            Err(SilvestreError::OutOfBounds {
+                x: 2,
+                y: 0,
+                width: 2,
+                height: 2
+            })
         ));
         assert!(matches!(
             img.get_pixel(0, 2),
-            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+            Err(SilvestreError::OutOfBounds {
+                x: 0,
+                y: 2,
+                width: 2,
+                height: 2
+            })
         ));
         assert!(matches!(
             img.get_pixel(2, 2),
-            Err(SilvestreError::OutOfBounds { x: 2, y: 2, width: 2, height: 2 })
+            Err(SilvestreError::OutOfBounds {
+                x: 2,
+                y: 2,
+                width: 2,
+                height: 2
+            })
         ));
     }
 
@@ -242,11 +263,21 @@ mod tests {
         let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
         assert!(matches!(
             img.set_pixel(2, 0, &[0, 0, 0, 0]),
-            Err(SilvestreError::OutOfBounds { x: 2, y: 0, width: 2, height: 2 })
+            Err(SilvestreError::OutOfBounds {
+                x: 2,
+                y: 0,
+                width: 2,
+                height: 2
+            })
         ));
         assert!(matches!(
             img.set_pixel(0, 2, &[0, 0, 0, 0]),
-            Err(SilvestreError::OutOfBounds { x: 0, y: 2, width: 2, height: 2 })
+            Err(SilvestreError::OutOfBounds {
+                x: 0,
+                y: 2,
+                width: 2,
+                height: 2
+            })
         ));
     }
 
@@ -255,7 +286,10 @@ mod tests {
         let mut img = SilvestreImage::zeroed(2, 2, ColorSpace::Rgba);
         assert!(matches!(
             img.set_pixel(0, 0, &[0, 0, 0]),
-            Err(SilvestreError::ChannelMismatch { expected: 4, got: 3 })
+            Err(SilvestreError::ChannelMismatch {
+                expected: 4,
+                got: 3
+            })
         ));
     }
 

@@ -13,7 +13,7 @@ Follow these steps:
    - Write comprehensive unit tests covering happy paths, edge cases, and error conditions.
    - Ensure the full workspace builds (`cargo build --workspace`) and all tests pass (`cargo test -p silvestre-core`).
 
-4. **Run CodeRabbit review**: Execute `cr review` to get AI-powered code review feedback on your changes.
+4. **Run CodeRabbit review**: Execute `coderabbit review` to get AI-powered code review feedback on your changes.
 
 5. **Address review feedback**: Read the CodeRabbit review output, then fix every actionable item. Re-run tests after applying fixes.
 
