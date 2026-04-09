@@ -37,14 +37,14 @@ impl Kernel {
                 "kernel dimensions must be odd".into(),
             ));
         }
-        let expected = width
+        let expected: usize = width
             .checked_mul(height)
             .ok_or_else(|| SilvestreError::InvalidParameter("kernel size overflow".into()))?;
         if values.len() != expected {
-            return Err(SilvestreError::BufferSizeMismatch {
-                expected,
-                got: values.len(),
-            });
+            return Err(SilvestreError::InvalidParameter(format!(
+                "kernel value count mismatch: expected {expected}, got {}",
+                values.len()
+            )));
         }
         Ok(Self {
             width,
@@ -73,7 +73,10 @@ impl Kernel {
                 "kernel size must be a positive odd integer".into(),
             ));
         }
-        let mut values = vec![0.0_f32; size * size];
+        let len = size
+            .checked_mul(size)
+            .ok_or_else(|| SilvestreError::InvalidParameter("kernel size overflow".into()))?;
+        let mut values = vec![0.0_f32; len];
         let center = size / 2;
         values[center * size + center] = 1.0;
         Self::square(values, size)
@@ -150,13 +153,65 @@ pub fn apply_kernel(
     let width = image.width();
     let height = image.height();
     let channels = image.color_space().channels();
-    let src = image.pixels();
-    let mut dst = vec![0u8; src.len()];
 
     if width == 0 || height == 0 {
-        return SilvestreImage::new(dst, width, height, image.color_space());
+        return SilvestreImage::new(
+            vec![0u8; image.pixels().len()],
+            width,
+            height,
+            image.color_space(),
+        );
     }
 
+    let src_f32: Vec<f32> = image.pixels().iter().map(|&b| f32::from(b)).collect();
+    let dst_f32 = convolve_f32(&src_f32, width, height, channels, kernel, border);
+    let dst = quantize(&dst_f32);
+    SilvestreImage::new(dst, width, height, image.color_space())
+}
+
+/// Apply a separable kernel by performing a horizontal pass followed by a
+/// vertical pass. Equivalent to a full 2D convolution with the outer product
+/// of the two components, but cheaper for kernels of meaningful size. The
+/// intermediate pass is kept in `f32` so that kernels with negative or
+/// out-of-range intermediate responses (e.g. Sobel) match the full 2D
+/// convolution result.
+pub fn apply_separable_kernel(
+    image: &SilvestreImage,
+    kernel: &SeparableKernel,
+    border: BorderMode,
+) -> Result<SilvestreImage> {
+    let width = image.width();
+    let height = image.height();
+    let channels = image.color_space().channels();
+
+    if width == 0 || height == 0 {
+        return SilvestreImage::new(
+            vec![0u8; image.pixels().len()],
+            width,
+            height,
+            image.color_space(),
+        );
+    }
+
+    let horizontal = Kernel::from_slice(&kernel.horizontal, kernel.horizontal.len(), 1)?;
+    let vertical = Kernel::from_slice(&kernel.vertical, 1, kernel.vertical.len())?;
+
+    let src_f32: Vec<f32> = image.pixels().iter().map(|&b| f32::from(b)).collect();
+    let after_h = convolve_f32(&src_f32, width, height, channels, &horizontal, border);
+    let after_v = convolve_f32(&after_h, width, height, channels, &vertical, border);
+    let dst = quantize(&after_v);
+    SilvestreImage::new(dst, width, height, image.color_space())
+}
+
+fn convolve_f32(
+    src: &[f32],
+    width: u32,
+    height: u32,
+    channels: usize,
+    kernel: &Kernel,
+    border: BorderMode,
+) -> Vec<f32> {
+    let mut dst = vec![0.0_f32; src.len()];
     let stride = (width as usize) * channels;
     let kw = kernel.width as i64;
     let kh = kernel.height as i64;
@@ -173,37 +228,33 @@ pub fn apply_kernel(
                         let sx = x + kx - kw_half;
                         let sy = y + ky - kh_half;
                         let sample =
-                            sample(src, width, height, channels, stride, sx, sy, c, border);
-                        let weight = kernel_values[(ky * kw + kx) as usize];
-                        acc += f32::from(sample) * weight;
+                            sample_f32(src, width, height, channels, stride, sx, sy, c, border);
+                        // Flip the kernel indices so that this is a true
+                        // convolution (not correlation). This ensures that
+                        // directional kernels behave consistently with the
+                        // mathematical definition.
+                        let weight = kernel_values[((kh - 1 - ky) * kw + (kw - 1 - kx)) as usize];
+                        acc += sample * weight;
                     }
                 }
                 let idx = (y as usize) * stride + (x as usize) * channels + c;
-                dst[idx] = acc.round().clamp(0.0, 255.0) as u8;
+                dst[idx] = acc;
             }
         }
     }
 
-    SilvestreImage::new(dst, width, height, image.color_space())
+    dst
 }
 
-/// Apply a separable kernel by performing a horizontal pass followed by a
-/// vertical pass. Equivalent to a full 2D convolution with the outer product
-/// of the two components, but cheaper for kernels of meaningful size.
-pub fn apply_separable_kernel(
-    image: &SilvestreImage,
-    kernel: &SeparableKernel,
-    border: BorderMode,
-) -> Result<SilvestreImage> {
-    let horizontal = Kernel::from_slice(&kernel.horizontal, kernel.horizontal.len(), 1)?;
-    let vertical = Kernel::from_slice(&kernel.vertical, 1, kernel.vertical.len())?;
-    let intermediate = apply_kernel(image, &horizontal, border)?;
-    apply_kernel(&intermediate, &vertical, border)
+fn quantize(src: &[f32]) -> Vec<u8> {
+    src.iter()
+        .map(|&v| v.round().clamp(0.0, 255.0) as u8)
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
-fn sample(
-    src: &[u8],
+fn sample_f32(
+    src: &[f32],
     width: u32,
     height: u32,
     channels: usize,
@@ -212,13 +263,13 @@ fn sample(
     y: i64,
     c: usize,
     border: BorderMode,
-) -> u8 {
+) -> f32 {
     let w = width as i64;
     let h = height as i64;
     let (sx, sy) = match border {
         BorderMode::Zero => {
             if x < 0 || x >= w || y < 0 || y >= h {
-                return 0;
+                return 0.0;
             }
             (x, y)
         }
@@ -265,13 +316,7 @@ mod tests {
     #[test]
     fn kernel_new_rejects_mismatched_buffer() {
         let err = Kernel::new(vec![0.0; 8], 3, 3).unwrap_err();
-        assert!(matches!(
-            err,
-            SilvestreError::BufferSizeMismatch {
-                expected: 9,
-                got: 8
-            }
-        ));
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
     }
 
     #[test]
@@ -432,8 +477,9 @@ mod tests {
     #[test]
     fn clamp_border_uses_edge_values() {
         let img = gray_image(3, 1, vec![10, 20, 30]);
-        // Horizontal kernel that picks the pixel one to the left.
-        let kernel = Kernel::new(vec![1.0, 0.0, 0.0], 3, 1).unwrap();
+        // Horizontal kernel that (after the convolution flip) picks the
+        // pixel one to the left. Stored in unflipped form as [0, 0, 1].
+        let kernel = Kernel::new(vec![0.0, 0.0, 1.0], 3, 1).unwrap();
         let out = apply_kernel(&img, &kernel, BorderMode::Clamp).unwrap();
         // x=0: samples x=-1 which clamps to x=0 -> 10
         // x=1: samples x=0 -> 10
@@ -444,9 +490,44 @@ mod tests {
     #[test]
     fn mirror_border_reflects_values() {
         let img = gray_image(3, 1, vec![10, 20, 30]);
-        let kernel = Kernel::new(vec![1.0, 0.0, 0.0], 3, 1).unwrap();
+        let kernel = Kernel::new(vec![0.0, 0.0, 1.0], 3, 1).unwrap();
         let out = apply_kernel(&img, &kernel, BorderMode::Mirror).unwrap();
         // x=0 samples x=-1 -> mirrored to x=1 -> 20
         assert_eq!(out.pixels(), &[20, 10, 20]);
+    }
+
+    #[test]
+    fn convolution_flips_asymmetric_kernel() {
+        // An asymmetric horizontal kernel [1, 2, 3] in convolution must be
+        // flipped before being applied, yielding an effective weight of
+        // [3, 2, 1] read left-to-right.
+        let img = gray_image(5, 1, vec![0, 0, 100, 0, 0]);
+        let kernel = Kernel::new(vec![1.0, 2.0, 3.0], 3, 1).unwrap();
+        let out = apply_kernel(&img, &kernel, BorderMode::Zero).unwrap();
+        // x=1: 3*0 + 2*0 + 1*100 = 100
+        // x=2: 3*0 + 2*100 + 1*0 = 200
+        // x=3: 3*100 + 2*0 + 1*0 = 300 -> clamp 255
+        assert_eq!(out.pixels(), &[0, 100, 200, 255, 0]);
+    }
+
+    #[test]
+    fn separable_preserves_sign_between_passes() {
+        // Use a non-monotonic image so that the horizontal Sobel pass
+        // produces both positive and negative intermediate values. If the
+        // intermediate buffer were quantized to u8, the negatives would be
+        // clamped to zero and the vertical pass would produce results that
+        // diverge from the equivalent full 2D convolution.
+        let img = gray_image(
+            5,
+            3,
+            vec![50, 10, 30, 10, 50, 10, 50, 30, 50, 10, 50, 10, 30, 10, 50],
+        );
+        // Sobel-x = [1,0,-1] * [1,2,1]^T (outer product).
+        let full_values = vec![1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0];
+        let full = Kernel::square(full_values, 3).unwrap();
+        let separable = SeparableKernel::new(vec![1.0, 0.0, -1.0], vec![1.0, 2.0, 1.0]).unwrap();
+        let full_out = apply_kernel(&img, &full, BorderMode::Clamp).unwrap();
+        let sep_out = apply_separable_kernel(&img, &separable, BorderMode::Clamp).unwrap();
+        assert_eq!(full_out.pixels(), sep_out.pixels());
     }
 }
