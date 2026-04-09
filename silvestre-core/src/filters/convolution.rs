@@ -132,6 +132,11 @@ impl Kernel {
                 values.len()
             )));
         }
+        if values.iter().any(|v| !v.is_finite()) {
+            return Err(SilvestreError::InvalidParameter(
+                "kernel values must be finite".into(),
+            ));
+        }
         Ok(Self {
             width,
             height,
@@ -239,6 +244,15 @@ impl SeparableKernel {
                 "separable kernel components must have odd length".into(),
             ));
         }
+        if horizontal
+            .iter()
+            .chain(vertical.iter())
+            .any(|v| !v.is_finite())
+        {
+            return Err(SilvestreError::InvalidParameter(
+                "separable kernel components must be finite".into(),
+            ));
+        }
         Ok(Self {
             horizontal,
             vertical,
@@ -308,8 +322,16 @@ pub fn apply_kernel(
         );
     }
 
-    let src_f32: Vec<f32> = image.pixels().iter().map(|&b| f32::from(b)).collect();
-    let dst_f32 = convolve_f32(&src_f32, width, height, channels, kernel, border);
+    let mut dst_f32 = vec![0.0_f32; image.pixels().len()];
+    convolve(
+        image.pixels(),
+        &mut dst_f32,
+        width,
+        height,
+        channels,
+        kernel,
+        border,
+    );
     let dst = quantize(&dst_f32);
     SilvestreImage::new(dst, width, height, image.color_space())
 }
@@ -362,22 +384,63 @@ pub fn apply_separable_kernel(
     let horizontal = Kernel::from_slice(&kernel.horizontal, kernel.horizontal.len(), 1)?;
     let vertical = Kernel::from_slice(&kernel.vertical, 1, kernel.vertical.len())?;
 
-    let src_f32: Vec<f32> = image.pixels().iter().map(|&b| f32::from(b)).collect();
-    let after_h = convolve_f32(&src_f32, width, height, channels, &horizontal, border);
-    let after_v = convolve_f32(&after_h, width, height, channels, &vertical, border);
+    let len = image.pixels().len();
+    let mut after_h = vec![0.0_f32; len];
+    let mut after_v = vec![0.0_f32; len];
+    convolve(
+        image.pixels(),
+        &mut after_h,
+        width,
+        height,
+        channels,
+        &horizontal,
+        border,
+    );
+    convolve(
+        after_h.as_slice(),
+        &mut after_v,
+        width,
+        height,
+        channels,
+        &vertical,
+        border,
+    );
     let dst = quantize(&after_v);
     SilvestreImage::new(dst, width, height, image.color_space())
 }
 
-fn convolve_f32(
-    src: &[f32],
+/// A source element type that can be read directly by the convolution hot
+/// loop. Implemented for `u8` (the initial pass from a [`SilvestreImage`])
+/// and `f32` (subsequent separable passes), so both can share the same
+/// tight loop without materializing an extra full-image f32 copy.
+trait Sample: Copy {
+    fn to_f32(self) -> f32;
+}
+
+impl Sample for u8 {
+    #[inline]
+    fn to_f32(self) -> f32 {
+        f32::from(self)
+    }
+}
+
+impl Sample for f32 {
+    #[inline]
+    fn to_f32(self) -> f32 {
+        self
+    }
+}
+
+fn convolve<T: Sample>(
+    src: &[T],
+    dst: &mut [f32],
     width: u32,
     height: u32,
     channels: usize,
     kernel: &Kernel,
     border: BorderMode,
-) -> Vec<f32> {
-    let mut dst = vec![0.0_f32; src.len()];
+) {
+    debug_assert_eq!(src.len(), dst.len());
     let stride = (width as usize) * channels;
     let kw = kernel.width as i64;
     let kh = kernel.height as i64;
@@ -394,7 +457,7 @@ fn convolve_f32(
                         let sx = x + kx - kw_half;
                         let sy = y + ky - kh_half;
                         let sample =
-                            sample_f32(src, width, height, channels, stride, sx, sy, c, border);
+                            sample(src, width, height, channels, stride, sx, sy, c, border);
                         // Flip the kernel indices so that this is a true
                         // convolution (not correlation). This ensures that
                         // directional kernels behave consistently with the
@@ -408,8 +471,6 @@ fn convolve_f32(
             }
         }
     }
-
-    dst
 }
 
 fn quantize(src: &[f32]) -> Vec<u8> {
@@ -419,8 +480,8 @@ fn quantize(src: &[f32]) -> Vec<u8> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn sample_f32(
-    src: &[f32],
+fn sample<T: Sample>(
+    src: &[T],
     width: u32,
     height: u32,
     channels: usize,
@@ -442,7 +503,7 @@ fn sample_f32(
         BorderMode::Clamp => (x.clamp(0, w - 1), y.clamp(0, h - 1)),
         BorderMode::Mirror => (mirror(x, w), mirror(y, h)),
     };
-    src[sy as usize * stride + sx as usize * channels + c]
+    src[sy as usize * stride + sx as usize * channels + c].to_f32()
 }
 
 fn mirror(coord: i64, size: i64) -> i64 {
@@ -482,6 +543,24 @@ mod tests {
     #[test]
     fn kernel_new_rejects_mismatched_buffer() {
         let err = Kernel::new(vec![0.0; 8], 3, 3).unwrap_err();
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
+    }
+
+    #[test]
+    fn kernel_new_rejects_non_finite_values() {
+        let err = Kernel::new(vec![f32::NAN], 1, 1).unwrap_err();
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
+        let err = Kernel::new(vec![f32::INFINITY], 1, 1).unwrap_err();
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
+        let err = Kernel::new(vec![f32::NEG_INFINITY], 1, 1).unwrap_err();
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
+    }
+
+    #[test]
+    fn separable_kernel_rejects_non_finite_values() {
+        let err = SeparableKernel::new(vec![f32::NAN], vec![1.0]).unwrap_err();
+        assert!(matches!(err, SilvestreError::InvalidParameter(_)));
+        let err = SeparableKernel::new(vec![1.0], vec![f32::INFINITY]).unwrap_err();
         assert!(matches!(err, SilvestreError::InvalidParameter(_)));
     }
 
