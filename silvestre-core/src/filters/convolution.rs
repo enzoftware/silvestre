@@ -1,7 +1,54 @@
+//! Convolution primitives for spatial image filters.
+//!
+//! This module provides the building blocks for any filter that can be
+//! expressed as a 2D convolution: a [`Kernel`] type, an optimized
+//! [`SeparableKernel`] variant, and the [`apply_kernel`] /
+//! [`apply_separable_kernel`] entry points. All accumulation is performed in
+//! `f32` and the final result is rounded and clamped to `0..=255`.
+//!
+//! # Quick start
+//!
+//! Apply a 3x3 box blur to a grayscale image using [`Kernel::square`] and
+//! [`apply_kernel`]:
+//!
+//! ```
+//! use silvestre_core::filters::{apply_kernel, BorderMode, Kernel};
+//! use silvestre_core::{ColorSpace, SilvestreImage};
+//!
+//! let img = SilvestreImage::new(vec![100; 16], 4, 4, ColorSpace::Grayscale)?;
+//! let blur = Kernel::square(vec![1.0 / 9.0; 9], 3)?;
+//! let out = apply_kernel(&img, &blur, BorderMode::Clamp)?;
+//! assert_eq!(out.width(), 4);
+//! # Ok::<_, silvestre_core::SilvestreError>(())
+//! ```
+
 use crate::{Result, SilvestreError, SilvestreImage};
 
 /// Strategy for sampling pixels that fall outside the image bounds during
 /// convolution.
+///
+/// # Examples
+///
+/// ```
+/// use silvestre_core::filters::{apply_kernel, BorderMode, Kernel};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let img = SilvestreImage::new(vec![10, 20, 30], 3, 1, ColorSpace::Grayscale)?;
+/// let identity = Kernel::identity(3)?;
+///
+/// // Zero-padding treats out-of-bounds pixels as 0.
+/// let zero = apply_kernel(&img, &identity, BorderMode::Zero)?;
+/// // Clamp extends the nearest edge pixel.
+/// let clamp = apply_kernel(&img, &identity, BorderMode::Clamp)?;
+/// // Mirror reflects coordinates across the edge.
+/// let mirror = apply_kernel(&img, &identity, BorderMode::Mirror)?;
+///
+/// // The identity kernel produces the same image regardless of border mode.
+/// assert_eq!(zero.pixels(), img.pixels());
+/// assert_eq!(clamp.pixels(), img.pixels());
+/// assert_eq!(mirror.pixels(), img.pixels());
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BorderMode {
     /// Treat out-of-bounds pixels as zero (zero-padding).
@@ -14,6 +61,33 @@ pub enum BorderMode {
 }
 
 /// A 2D convolution kernel with odd width and height.
+///
+/// Values are stored in row-major order. Use [`Kernel::new`] for
+/// rectangular kernels, [`Kernel::square`] for square kernels, or
+/// [`Kernel::identity`] for the no-op kernel.
+///
+/// # Examples
+///
+/// Build a 3x3 sharpening kernel and apply it to a grayscale image:
+///
+/// ```
+/// use silvestre_core::filters::{apply_kernel, BorderMode, Kernel};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let sharpen = Kernel::square(
+///     vec![
+///          0.0, -1.0,  0.0,
+///         -1.0,  5.0, -1.0,
+///          0.0, -1.0,  0.0,
+///     ],
+///     3,
+/// )?;
+///
+/// let img = SilvestreImage::new(vec![100; 9], 3, 3, ColorSpace::Grayscale)?;
+/// let out = apply_kernel(&img, &sharpen, BorderMode::Clamp)?;
+/// assert_eq!(out.width(), 3);
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct Kernel {
     width: usize,
@@ -26,6 +100,18 @@ impl Kernel {
     ///
     /// `width` and `height` must be positive odd integers, and
     /// `values.len()` must equal `width * height`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use silvestre_core::filters::Kernel;
+    ///
+    /// // A 3x1 horizontal edge-detection kernel.
+    /// let edge_x = Kernel::new(vec![-1.0, 0.0, 1.0], 3, 1)?;
+    /// assert_eq!(edge_x.width(), 3);
+    /// assert_eq!(edge_x.height(), 1);
+    /// # Ok::<_, silvestre_core::SilvestreError>(())
+    /// ```
     pub fn new(values: Vec<f32>, width: usize, height: usize) -> Result<Self> {
         if width == 0 || height == 0 {
             return Err(SilvestreError::InvalidParameter(
@@ -67,6 +153,19 @@ impl Kernel {
 
     /// Build an identity kernel of the given odd size. Convolving any image
     /// with this kernel returns an image equal to the input.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use silvestre_core::filters::{apply_kernel, BorderMode, Kernel};
+    /// use silvestre_core::{ColorSpace, SilvestreImage};
+    ///
+    /// let img = SilvestreImage::new(vec![10, 20, 30, 40], 2, 2, ColorSpace::Grayscale)?;
+    /// let identity = Kernel::identity(3)?;
+    /// let out = apply_kernel(&img, &identity, BorderMode::Clamp)?;
+    /// assert_eq!(out.pixels(), img.pixels());
+    /// # Ok::<_, silvestre_core::SilvestreError>(())
+    /// ```
     pub fn identity(size: usize) -> Result<Self> {
         if size == 0 || size.is_multiple_of(2) {
             return Err(SilvestreError::InvalidParameter(
@@ -102,6 +201,24 @@ impl Kernel {
 /// vertical 1D vector. Applying it via [`apply_separable_kernel`] is
 /// `O(N * (kw + kh))` instead of the `O(N * kw * kh)` cost of a full 2D
 /// convolution.
+///
+/// # Examples
+///
+/// A 3x3 box blur written as a separable kernel:
+///
+/// ```
+/// use silvestre_core::filters::{apply_separable_kernel, BorderMode, SeparableKernel};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let img = SilvestreImage::new(vec![100; 16], 4, 4, ColorSpace::Grayscale)?;
+/// let blur = SeparableKernel::new(
+///     vec![1.0 / 3.0; 3],
+///     vec![1.0 / 3.0; 3],
+/// )?;
+/// let out = apply_separable_kernel(&img, &blur, BorderMode::Clamp)?;
+/// assert!(out.pixels().iter().all(|&v| v == 100));
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct SeparableKernel {
     horizontal: Vec<f32>,
@@ -145,6 +262,34 @@ impl SeparableKernel {
 /// The kernel is applied independently to every channel (including alpha).
 /// Out-of-bounds samples are resolved according to `border`. Accumulated
 /// values are rounded and clamped to the `0..=255` range.
+///
+/// # Examples
+///
+/// Apply a horizontal Sobel kernel to an RGBA image:
+///
+/// ```
+/// use silvestre_core::filters::{apply_kernel, BorderMode, Kernel};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let pixels = vec![
+///     10, 10, 10, 255,  20, 20, 20, 255,  30, 30, 30, 255,
+///     10, 10, 10, 255,  20, 20, 20, 255,  30, 30, 30, 255,
+///     10, 10, 10, 255,  20, 20, 20, 255,  30, 30, 30, 255,
+/// ];
+/// let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Rgba)?;
+///
+/// let sobel_x = Kernel::square(
+///     vec![
+///         1.0, 0.0, -1.0,
+///         2.0, 0.0, -2.0,
+///         1.0, 0.0, -1.0,
+///     ],
+///     3,
+/// )?;
+/// let edges = apply_kernel(&img, &sobel_x, BorderMode::Clamp)?;
+/// assert_eq!(edges.color_space(), ColorSpace::Rgba);
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
 pub fn apply_kernel(
     image: &SilvestreImage,
     kernel: &Kernel,
@@ -175,6 +320,27 @@ pub fn apply_kernel(
 /// intermediate pass is kept in `f32` so that kernels with negative or
 /// out-of-range intermediate responses (e.g. Sobel) match the full 2D
 /// convolution result.
+///
+/// # Examples
+///
+/// Apply a 1D Gaussian (approximated) as a separable kernel:
+///
+/// ```
+/// use silvestre_core::filters::{apply_separable_kernel, BorderMode, SeparableKernel};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// // Normalized [1, 2, 1] / 4 in both directions.
+/// let gaussian = SeparableKernel::new(
+///     vec![0.25, 0.5, 0.25],
+///     vec![0.25, 0.5, 0.25],
+/// )?;
+///
+/// let img = SilvestreImage::new(vec![50; 25], 5, 5, ColorSpace::Grayscale)?;
+/// let out = apply_separable_kernel(&img, &gaussian, BorderMode::Mirror)?;
+/// assert_eq!(out.width(), 5);
+/// assert_eq!(out.height(), 5);
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
 pub fn apply_separable_kernel(
     image: &SilvestreImage,
     kernel: &SeparableKernel,
