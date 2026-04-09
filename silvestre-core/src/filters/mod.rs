@@ -5,8 +5,10 @@
 //! the helpers in [`convolution`].
 
 pub mod convolution;
+pub mod median;
 
 pub use convolution::{apply_kernel, apply_separable_kernel, BorderMode, Kernel, SeparableKernel};
+pub use median::MedianFilter;
 
 use crate::{Result, SilvestreImage};
 
