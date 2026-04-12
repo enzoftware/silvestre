@@ -121,7 +121,9 @@ impl Filter for CannyFilter {
         let mut magnitude = vec![0.0_f32; len];
         let mut direction = vec![0.0_f32; len];
         for i in 0..len {
-            magnitude[i] = (gx[i] * gx[i] + gy[i] * gy[i]).sqrt();
+            magnitude[i] = (gx[i] * gx[i] + gy[i] * gy[i])
+                .sqrt()
+                .clamp(0.0, 255.0);
             direction[i] = gy[i].atan2(gx[i]);
         }
 
