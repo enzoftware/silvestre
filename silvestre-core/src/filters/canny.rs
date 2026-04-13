@@ -222,10 +222,13 @@ fn hysteresis(
     // 0 = suppressed, 1 = weak, 2 = strong
     let mut marker = vec![0u8; len];
 
+    let mut stack: Vec<usize> = Vec::new();
+
     // Classify pixels.
     for i in 0..len {
         if suppressed[i] >= high {
             marker[i] = 2;
+            stack.push(i);
         } else if suppressed[i] >= low {
             marker[i] = 1;
         }
@@ -233,12 +236,6 @@ fn hysteresis(
 
     // Hysteresis: flood-fill from strong edges to connected weak edges.
     // Use a stack-based approach to avoid recursion limits.
-    let mut stack: Vec<usize> = Vec::new();
-    for i in 0..len {
-        if marker[i] == 2 {
-            stack.push(i);
-        }
-    }
 
     while let Some(idx) = stack.pop() {
         let x = idx % width;
