@@ -49,7 +49,7 @@ pub enum MirrorMode {
 /// use silvestre_core::{ColorSpace, SilvestreImage};
 ///
 /// let pixels = vec![
-///     1, 2, 3,   // row 0: pixels A, B, C  (RGB, 1 channel each for clarity)
+///     1, 2, 3,   // row 0: grayscale pixels A, B, C
 ///     4, 5, 6,   // row 1: pixels D, E, F
 /// ];
 /// let img = SilvestreImage::new(pixels, 3, 2, ColorSpace::Grayscale)?;
