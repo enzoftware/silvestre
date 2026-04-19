@@ -1,2 +1,5 @@
 // Geometric transformations.
-// Implementations will be added in subsequent issues.
+
+pub mod mirror;
+
+pub use mirror::{MirrorFilter, MirrorMode};
