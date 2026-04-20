@@ -3,6 +3,7 @@
 //! Converts an image to single-channel grayscale using the ITU-R BT.601
 //! luminance formula: `Y = 0.299·R + 0.587·G + 0.114·B`.
 
+use crate::filters::Filter;
 use crate::{ColorSpace, Result, SilvestreImage};
 
 /// Convert an image to grayscale.
@@ -54,6 +55,33 @@ pub fn to_grayscale(image: &SilvestreImage) -> Result<SilvestreImage> {
     }
 
     SilvestreImage::new(dst, width, height, ColorSpace::Grayscale)
+}
+
+/// Filter adapter that converts an image to grayscale.
+///
+/// Wraps [`to_grayscale`] in the [`Filter`] trait so `GrayscaleFilter` can be
+/// used wherever a `Filter` is expected—including in filter pipelines and as a
+/// trait object.
+///
+/// # Examples
+///
+/// ```
+/// use silvestre_core::effects::grayscale::GrayscaleFilter;
+/// use silvestre_core::filters::Filter;
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let img = SilvestreImage::new(vec![255, 0, 0], 1, 1, ColorSpace::Rgb)?;
+/// let out = GrayscaleFilter.apply(&img)?;
+/// assert_eq!(out.color_space(), ColorSpace::Grayscale);
+/// # Ok::<_, silvestre_core::SilvestreError>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GrayscaleFilter;
+
+impl Filter for GrayscaleFilter {
+    fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        to_grayscale(image)
+    }
 }
 
 #[cfg(test)]
@@ -118,5 +146,33 @@ mod tests {
         assert_eq!(out.width(), 4);
         assert_eq!(out.height(), 5);
         assert_eq!(out.pixels().len(), 20);
+    }
+
+    // --- GrayscaleFilter (Filter trait) ---
+
+    #[test]
+    fn filter_produces_same_result_as_function() {
+        let img = SilvestreImage::new(vec![100, 150, 200], 1, 1, ColorSpace::Rgb).unwrap();
+        let expected = to_grayscale(&img).unwrap();
+        let out = GrayscaleFilter.apply(&img).unwrap();
+        assert_eq!(out.pixels(), expected.pixels());
+        assert_eq!(out.color_space(), expected.color_space());
+    }
+
+    #[test]
+    fn filter_passthrough_on_grayscale() {
+        let img = SilvestreImage::new(vec![77; 4], 2, 2, ColorSpace::Grayscale).unwrap();
+        let out = GrayscaleFilter.apply(&img).unwrap();
+        assert_eq!(out.color_space(), ColorSpace::Grayscale);
+        assert_eq!(out.pixels(), img.pixels());
+    }
+
+    #[test]
+    fn filter_trait_object() {
+        use crate::filters::Filter;
+        let filter: Box<dyn Filter> = Box::new(GrayscaleFilter);
+        let img = SilvestreImage::new(vec![255, 255, 255], 1, 1, ColorSpace::Rgb).unwrap();
+        let out = filter.apply(&img).unwrap();
+        assert_eq!(out.pixels(), &[255]);
     }
 }
