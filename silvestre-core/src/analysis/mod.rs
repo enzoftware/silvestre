@@ -1,2 +1,5 @@
 // Image analysis tools.
-// Implementations will be added in subsequent issues.
+
+pub mod histogram;
+
+pub use histogram::Histogram;
