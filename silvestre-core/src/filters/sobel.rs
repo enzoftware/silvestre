@@ -278,4 +278,47 @@ mod tests {
             "gy at middle row should be ~0"
         );
     }
+
+    #[test]
+    fn magnitude_clamped_at_max_contrast_edge() {
+        // A sharp black-to-white step (0 → 255) produces a pre-clamp gradient
+        // magnitude well above 255. Verify the output is clamped to exactly 255
+        // and that the type conversion doesn't saturate silently at the wrong value.
+        #[rustfmt::skip]
+        let pixels = vec![
+            0,   0,   255, 255,
+            0,   0,   255, 255,
+            0,   0,   255, 255,
+            0,   0,   255, 255,
+        ];
+        let img = gray_image(4, 4, pixels);
+        let out = SobelFilter::new().apply(&img).unwrap();
+        let max = *out.pixels().iter().max().unwrap();
+        assert_eq!(max, 255, "edge pixels at full contrast should be clamped to 255");
+    }
+
+    #[test]
+    fn diagonal_edge_activates_both_gradients() {
+        // A diagonal step (upper-left dark, lower-right bright) should
+        // produce non-zero responses in both Gx and Gy at the center pixel.
+        #[rustfmt::skip]
+        let pixels = vec![
+            0,   0,   0,
+            0,   128, 255,
+            0,   255, 255,
+        ];
+        let img = gray_image(3, 3, pixels);
+        let (gx, gy) = sobel_gradients(&img, BorderMode::Clamp);
+        let center = 4; // row 1, col 1
+        assert!(
+            gx[center].abs() > 1.0,
+            "gx at diagonal edge center should be non-zero: {}",
+            gx[center]
+        );
+        assert!(
+            gy[center].abs() > 1.0,
+            "gy at diagonal edge center should be non-zero: {}",
+            gy[center]
+        );
+    }
 }
