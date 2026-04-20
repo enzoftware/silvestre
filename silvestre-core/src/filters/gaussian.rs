@@ -207,4 +207,44 @@ mod tests {
         let out = filter.apply(&img).unwrap();
         assert_eq!(out.width(), 3);
     }
+
+    #[test]
+    fn separable_matches_full_2d_convolution() {
+        // Build a 1D Gaussian and its outer product (full 2D kernel), then verify
+        // that the separable two-pass result matches the full 2D convolution
+        // result within rounding tolerance.
+        use crate::filters::convolution::{apply_kernel, Kernel};
+
+        let sigma = 1.0_f32;
+        let size = 7_usize; // 2 * ceil(3 * 1.0) + 1 = 7
+        let coeffs = gaussian_1d(sigma, size);
+
+        // Build 2D kernel as outer product of the 1D coefficients.
+        let mut values_2d = vec![0.0_f32; size * size];
+        for (row, &vy) in coeffs.iter().enumerate() {
+            for (col, &vx) in coeffs.iter().enumerate() {
+                values_2d[row * size + col] = vy * vx;
+            }
+        }
+        let kernel_2d = Kernel::square(values_2d, size).unwrap();
+        let sep_kernel =
+            SeparableKernel::new(coeffs.clone(), coeffs).unwrap();
+
+        let img = gray_image(8, 8, (0..64u8).collect());
+
+        let full_out = apply_kernel(&img, &kernel_2d, BorderMode::Clamp).unwrap();
+        let sep_out = apply_separable_kernel(&img, &sep_kernel, BorderMode::Clamp).unwrap();
+
+        for (i, (a, b)) in full_out
+            .pixels()
+            .iter()
+            .zip(sep_out.pixels().iter())
+            .enumerate()
+        {
+            assert!(
+                (i32::from(*a) - i32::from(*b)).abs() <= 1,
+                "pixel {i}: full={a} sep={b}: separable and full 2D results diverge"
+            );
+        }
+    }
 }
