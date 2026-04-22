@@ -67,16 +67,22 @@ pub fn to_sepia(image: &SilvestreImage) -> Result<SilvestreImage> {
         let g_out = (0.349 * r + 0.686 * g + 0.168 * b).round().clamp(0.0, 255.0) as u8;
         let b_out = (0.272 * r + 0.534 * g + 0.131 * b).round().clamp(0.0, 255.0) as u8;
 
+        let r_f = 0.393 * r + 0.769 * g + 0.189 * b;
+        let g_f = 0.349 * r + 0.686 * g + 0.168 * b;
+        let b_f = 0.272 * r + 0.534 * g + 0.131 * b;
+        let r_out = r_f.round().clamp(0.0, 255.0) as u8;
+        let g_out = g_f.round().clamp(0.0, 255.0) as u8;
+        let b_out = b_f.round().clamp(0.0, 255.0) as u8;
+
         match cs {
             ColorSpace::Grayscale => {
-                // Collapse back to luminance so the output stays grayscale.
-                let lum = (0.299 * f32::from(r_out)
-                    + 0.587 * f32::from(g_out)
-                    + 0.114 * f32::from(b_out))
-                .round()
-                .clamp(0.0, 255.0) as u8;
+                // Collapse sepia RGB back to luminance (single rounding step).
+                let lum = (0.299 * r_f + 0.587 * g_f + 0.114 * b_f)
+                    .round()
+                    .clamp(0.0, 255.0) as u8;
                 dst[offset] = lum;
             }
+            ColorSpace::Rgb => {
             ColorSpace::Rgb => {
                 dst[offset] = r_out;
                 dst[offset + 1] = g_out;
