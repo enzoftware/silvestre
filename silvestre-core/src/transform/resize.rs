@@ -143,14 +143,14 @@ impl Filter for ResizeFilter {
             Interpolation::Bilinear => {
                 for dst_y in 0..dst_h {
                     // Map destination pixel center to continuous source coordinates.
-                    let sy = (dst_y as f32 + 0.5) * src_h as f32 / dst_h as f32 - 0.5;
+                    let sy = (dst_y as f64 + 0.5) * src_h as f64 / dst_h as f64 - 0.5;
                     let sy = sy.max(0.0);
                     let y0 = (sy.floor() as usize).min(src_h - 1);
                     let y1 = (y0 + 1).min(src_h - 1);
                     let ty = sy - sy.floor();
 
                     for dst_x in 0..dst_w {
-                        let sx = (dst_x as f32 + 0.5) * src_w as f32 / dst_w as f32 - 0.5;
+                        let sx = (dst_x as f64 + 0.5) * src_w as f64 / dst_w as f64 - 0.5;
                         let sx = sx.max(0.0);
                         let x0 = (sx.floor() as usize).min(src_w - 1);
                         let x1 = (x0 + 1).min(src_w - 1);
@@ -165,10 +165,10 @@ impl Filter for ResizeFilter {
                         let off11 = (y1 * src_w + x1) * channels;
 
                         for c in 0..channels {
-                            let p00 = src[off00 + c] as f32;
-                            let p10 = src[off10 + c] as f32;
-                            let p01 = src[off01 + c] as f32;
-                            let p11 = src[off11 + c] as f32;
+                            let p00 = src[off00 + c] as f64;
+                            let p10 = src[off10 + c] as f64;
+                            let p01 = src[off01 + c] as f64;
+                            let p11 = src[off11 + c] as f64;
 
                             let top = p00 * (1.0 - tx) + p10 * tx;
                             let bot = p01 * (1.0 - tx) + p11 * tx;

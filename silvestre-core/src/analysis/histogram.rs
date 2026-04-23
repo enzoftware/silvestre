@@ -195,7 +195,6 @@ impl Histogram {
                     sum += lum as u64;
                 }
             }
-            _ => return None,
         }
 
         let stats = if pixel_count == 0 {
@@ -444,7 +443,11 @@ mod tests {
     fn stats_stddev_uniform_is_zero() {
         let img = gray(5, 5, vec![128; 25]);
         let hist = Histogram::compute(&img);
-        assert!(hist.stats(0).std_dev < 1e-9, "std_dev={}", hist.stats(0).std_dev);
+        assert!(
+            hist.stats(0).std_dev < 1e-9,
+            "std_dev={}",
+            hist.stats(0).std_dev
+        );
     }
 
     #[test]
@@ -463,7 +466,11 @@ mod tests {
         let hist = Histogram::compute(&img);
         let expected = (200.0f64 / 3.0).sqrt();
         let diff = (hist.stats(0).std_dev - expected).abs();
-        assert!(diff < 1e-9, "std_dev={} expected={expected}", hist.stats(0).std_dev);
+        assert!(
+            diff < 1e-9,
+            "std_dev={} expected={expected}",
+            hist.stats(0).std_dev
+        );
     }
 
     // ------------------------------------------------------------------ //
