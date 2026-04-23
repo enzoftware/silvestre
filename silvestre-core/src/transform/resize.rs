@@ -124,9 +124,9 @@ impl Filter for ResizeFilter {
             Interpolation::NearestNeighbor => {
                 for dst_y in 0..dst_h {
                     // Map destination row to the nearest source row (floor).
-                    let src_y = (dst_y * src_h) / dst_h;
+                    let src_y = ((dst_y as u64 * src_h as u64) / dst_h as u64) as usize;
                     for dst_x in 0..dst_w {
-                        let src_x = (dst_x * src_w) / dst_w;
+                        let src_x = ((dst_x as u64 * src_w as u64) / dst_w as u64) as usize;
                         let src_off = (src_y * src_w + src_x) * channels;
                         let dst_off = (dst_y * dst_w + dst_x) * channels;
                         dst[dst_off..dst_off + channels]
