@@ -118,7 +118,13 @@ impl Filter for ResizeFilter {
                 width: self.target_width,
                 height: self.target_height,
             })?;
-        let mut dst = vec![0u8; buf_size];
+        let mut dst = Vec::<u8>::new();
+        dst.try_reserve_exact(buf_size)
+            .map_err(|_| SilvestreError::InvalidDimensions {
+                width: self.target_width,
+                height: self.target_height,
+            })?;
+        dst.resize(buf_size, 0);
 
         match self.interpolation {
             Interpolation::NearestNeighbor => {
