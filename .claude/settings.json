@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check *)",
+      "Bash(git -C /Users/enzoftware/Projects/silvestre diff HEAD)",
+      "Bash(git -C /Users/enzoftware/Projects/silvestre add silvestre-core/src/transform/resize.rs silvestre-core/src/analysis/histogram.rs)",
+      "Bash(git -C /Users/enzoftware/Projects/silvestre commit -m 'fix\\(transform,histogram\\): use f64 for bilinear interpolation and remove dead wildcard arm *)",
+      "Bash(git -C /Users/enzoftware/Projects/silvestre push)",
+      "Bash(git -C /Users/enzoftware/Projects/silvestre pull --rebase)"
+    ]
+  }
+}

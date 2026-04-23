@@ -63,10 +63,6 @@ pub fn to_sepia(image: &SilvestreImage) -> Result<SilvestreImage> {
             }
         };
 
-        let r_out = (0.393 * r + 0.769 * g + 0.189 * b).round().clamp(0.0, 255.0) as u8;
-        let g_out = (0.349 * r + 0.686 * g + 0.168 * b).round().clamp(0.0, 255.0) as u8;
-        let b_out = (0.272 * r + 0.534 * g + 0.131 * b).round().clamp(0.0, 255.0) as u8;
-
         let r_f = 0.393 * r + 0.769 * g + 0.189 * b;
         let g_f = 0.349 * r + 0.686 * g + 0.168 * b;
         let b_f = 0.272 * r + 0.534 * g + 0.131 * b;
@@ -82,7 +78,6 @@ pub fn to_sepia(image: &SilvestreImage) -> Result<SilvestreImage> {
                     .clamp(0.0, 255.0) as u8;
                 dst[offset] = lum;
             }
-            ColorSpace::Rgb => {
             ColorSpace::Rgb => {
                 dst[offset] = r_out;
                 dst[offset + 1] = g_out;
