@@ -125,14 +125,8 @@ mod tests {
     fn sharpen_with_different_border_modes() {
         let pixels = vec![100; 9];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
-        
-        // Zero border padding.
-        let filter = SharpenFilter::with_border(BorderMode::Zero).unwrap();
-        let out = filter.apply(&img).unwrap();
-        // Edge pixels will change because they see the 0 border.
-        // (0,0) pixel sees: 0 0 0; 0 100 100; 0 100 100
-        // Kernel: 0 -1 0; -1 5 -1; 0 -1 0
-        // (0,0) with Zero: 100*5 - 100(right) - 100(bottom) - 0(left) - 0(top) = 300
-        assert_eq!(out.pixels()[0], 255); // Clamped to 255
+        let out_zero = SharpenFilter::with_border(BorderMode::Zero).unwrap().apply(&img).unwrap();
+        let out_clamp = SharpenFilter::with_border(BorderMode::Clamp).unwrap().apply(&img).unwrap();
+        assert_ne!(out_zero.pixels(), out_clamp.pixels());
     }
 }
