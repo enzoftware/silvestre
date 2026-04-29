@@ -190,6 +190,7 @@ impl RotateFilter {
 mod tests {
     use super::*;
     use crate::ColorSpace;
+    use crate::SilvestreImage;
 
     fn gray(width: u32, height: u32, pixels: Vec<u8>) -> SilvestreImage {
         SilvestreImage::new(pixels, width, height, ColorSpace::Grayscale).unwrap()
@@ -360,5 +361,87 @@ mod tests {
             .apply(&r270)
             .unwrap();
         assert_eq!(r90.pixels(), &pixels);
+    }
+
+    // Task 6: Fixed Rotation Edge Case Tests
+    #[test]
+    fn fixed_rotation_empty_image() {
+        let img = gray(0, 0, vec![]);
+        for angle in [0.0, 90.0, 180.0, 270.0] {
+            let rotated = RotateFilter::new(angle, 255, [255, 255, 255])
+                .apply(&img)
+                .unwrap();
+            assert_eq!(rotated.width(), 0);
+            assert_eq!(rotated.height(), 0);
+            assert!(rotated.pixels().is_empty());
+        }
+    }
+
+    #[test]
+    fn fixed_rotation_single_pixel() {
+        let img = gray(1, 1, vec![42]);
+        for angle in [0.0, 90.0, 180.0, 270.0] {
+            let rotated = RotateFilter::new(angle, 255, [255, 255, 255])
+                .apply(&img)
+                .unwrap();
+            assert_eq!(rotated.pixels(), &[42]);
+        }
+    }
+
+    #[test]
+    fn fixed_rotation_single_row() {
+        let img = gray(4, 1, vec![1, 2, 3, 4]);
+        let r90 = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(r90.width(), 1);
+        assert_eq!(r90.height(), 4);
+    }
+
+    #[test]
+    fn fixed_rotation_single_column() {
+        let img = gray(1, 4, vec![1, 2, 3, 4]);
+        let r90 = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(r90.width(), 4);
+        assert_eq!(r90.height(), 1);
+    }
+
+    #[test]
+    fn fixed_rotation_preserves_metadata() {
+        let img = SilvestreImage::new(vec![0; 4 * 3 * 3], 4, 3, ColorSpace::Rgb).unwrap();
+        for angle in [0.0, 90.0, 180.0, 270.0] {
+            let rotated = RotateFilter::new(angle, 255, [255, 255, 255])
+                .apply(&img)
+                .unwrap();
+            assert_eq!(rotated.color_space(), ColorSpace::Rgb);
+            if angle == 0.0 || angle == 180.0 {
+                assert_eq!(rotated.width(), 4);
+                assert_eq!(rotated.height(), 3);
+            } else {
+                assert_eq!(rotated.width(), 3);
+                assert_eq!(rotated.height(), 4);
+            }
+        }
+    }
+
+    #[test]
+    fn fixed_rotation_rgba() {
+        let pixels = vec![255, 0, 0, 255, 0, 255, 0, 255];
+        let img = SilvestreImage::new(pixels.clone(), 2, 1, ColorSpace::Rgba).unwrap();
+        let r180 = RotateFilter::new(180.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(r180.pixels(), &[255, 0, 255, 0, 255, 0, 0, 255]);
+    }
+
+    #[test]
+    fn filter_trait_object() {
+        let filter: Box<dyn Filter> = Box::new(RotateFilter::new(90.0, 255, [255, 255, 255]));
+        let img = gray(2, 2, vec![1, 2, 3, 4]);
+        let rotated = filter.apply(&img).unwrap();
+        assert_eq!(rotated.width(), 2);
+        assert_eq!(rotated.height(), 2);
     }
 }
