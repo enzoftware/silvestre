@@ -4,16 +4,20 @@
 //! be composed uniformly. Spatial filters that operate via convolution share
 //! the helpers in [`convolution`].
 
+pub mod box_blur;
 pub mod canny;
 pub mod convolution;
 pub mod gaussian;
 pub mod median;
+pub mod sharpen;
 pub mod sobel;
 
+pub use box_blur::BoxBlurFilter;
 pub use canny::CannyFilter;
 pub use convolution::{apply_kernel, apply_separable_kernel, BorderMode, Kernel, SeparableKernel};
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;
+pub use sharpen::SharpenFilter;
 pub use sobel::SobelFilter;
 
 use crate::{Result, SilvestreImage};
