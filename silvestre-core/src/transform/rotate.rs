@@ -4,7 +4,7 @@
 //! and arbitrary angle rotation using bilinear interpolation.
 
 use crate::filters::Filter;
-use crate::{Result, SilvestreError, SilvestreImage};
+use crate::{Result, SilvestreImage};
 
 /// Rotation filter for fixed and arbitrary angles.
 ///
@@ -101,8 +101,62 @@ impl RotateFilter {
 
 impl Filter for RotateFilter {
     fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
-        // Placeholder - will implement in later tasks
-        todo!("Implement rotation apply method")
+        let normalized_angle = Self::normalize_angle(self.angle);
+
+        // Handle empty image
+        if image.width() == 0 || image.height() == 0 {
+            return SilvestreImage::new(
+                image.pixels().to_vec(),
+                image.width(),
+                image.height(),
+                image.color_space(),
+            );
+        }
+
+        // Check if it's a fixed angle
+        if let Some(fixed_angle) = Self::is_fixed_angle(normalized_angle) {
+            match fixed_angle {
+                0 => self.rotate_0(image),
+                90 => self.rotate_90(image),
+                180 => self.rotate_180(image),
+                270 => self.rotate_270(image),
+                _ => unreachable!(),
+            }
+        } else {
+            self.rotate_arbitrary(image)
+        }
+    }
+}
+
+impl RotateFilter {
+    /// 0° rotation: identity, return a clone.
+    fn rotate_0(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        SilvestreImage::new(
+            image.pixels().to_vec(),
+            image.width(),
+            image.height(),
+            image.color_space(),
+        )
+    }
+
+    /// 90° rotation: placeholder for next task.
+    fn rotate_90(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
+        todo!("Implement 90° rotation")
+    }
+
+    /// 180° rotation: placeholder for next task.
+    fn rotate_180(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
+        todo!("Implement 180° rotation")
+    }
+
+    /// 270° rotation: placeholder for next task.
+    fn rotate_270(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
+        todo!("Implement 270° rotation")
+    }
+
+    /// Arbitrary angle rotation with bilinear interpolation.
+    fn rotate_arbitrary(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
+        todo!("Implement arbitrary angle rotation")
     }
 }
 
@@ -115,5 +169,29 @@ mod tests {
         SilvestreImage::new(pixels, width, height, ColorSpace::Grayscale).unwrap()
     }
 
-    // Tests will be added in following tasks
+    #[test]
+    fn rotate_0_degrees_returns_clone() {
+        let pixels = vec![1, 2, 3, 4, 5, 6];
+        let img = gray(3, 2, pixels.clone());
+        let rotated = RotateFilter::new(0.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        assert_eq!(rotated.pixels(), &pixels);
+        assert_eq!(rotated.width(), img.width());
+        assert_eq!(rotated.height(), img.height());
+    }
+
+    #[test]
+    fn rotate_360_degrees_returns_clone() {
+        let pixels = vec![1, 2, 3, 4, 5, 6];
+        let img = gray(3, 2, pixels.clone());
+        let rotated = RotateFilter::new(360.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        assert_eq!(rotated.pixels(), &pixels);
+    }
+
+    #[test]
+    fn rotate_negative_angle_normalizes() {
+        let pixels = vec![1, 2, 3, 4];
+        let img = gray(2, 2, pixels.clone());
+        let rotated = RotateFilter::new(-360.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        assert_eq!(rotated.pixels(), &pixels);
+    }
 }
