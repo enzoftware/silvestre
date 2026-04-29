@@ -144,9 +144,14 @@ impl RotateFilter {
         todo!("Implement 90° rotation")
     }
 
-    /// 180° rotation: placeholder for next task.
-    fn rotate_180(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
-        todo!("Implement 180° rotation")
+    /// 180° rotation: equivalent to mirroring both horizontally and vertically.
+    fn rotate_180(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        let src = image.pixels();
+        let mut dst = vec![0u8; src.len()];
+        for (i, pixel) in src.iter().enumerate() {
+            dst[src.len() - 1 - i] = *pixel;
+        }
+        SilvestreImage::new(dst, image.width(), image.height(), image.color_space())
     }
 
     /// 270° rotation: placeholder for next task.
@@ -193,5 +198,40 @@ mod tests {
         let img = gray(2, 2, pixels.clone());
         let rotated = RotateFilter::new(-360.0, 255, [255, 255, 255]).apply(&img).unwrap();
         assert_eq!(rotated.pixels(), &pixels);
+    }
+
+    // Task 3: 180° Rotation Tests
+    #[test]
+    fn rotate_180_degrees_grayscale() {
+        let img = gray(3, 2, vec![1, 2, 3, 4, 5, 6]);
+        let rotated = RotateFilter::new(180.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.pixels(), &[6, 5, 4, 3, 2, 1]);
+        assert_eq!(rotated.width(), 3);
+        assert_eq!(rotated.height(), 2);
+    }
+
+    #[test]
+    fn rotate_180_round_trip() {
+        let pixels: Vec<u8> = (0..12).collect();
+        let img = gray(4, 3, pixels.clone());
+        let filter = RotateFilter::new(180.0, 255, [255, 255, 255]);
+        let once = filter.apply(&img).unwrap();
+        let twice = filter.apply(&once).unwrap();
+        assert_eq!(twice.pixels(), &pixels);
+    }
+
+    #[test]
+    fn rotate_180_equals_mirror_both() {
+        let pixels: Vec<u8> = (0..12).collect();
+        let img = gray(4, 3, pixels);
+        let rotated = RotateFilter::new(180.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        let mirror_both = crate::transform::MirrorFilter::new(crate::transform::MirrorMode::Both)
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.pixels(), mirror_both.pixels());
     }
 }
