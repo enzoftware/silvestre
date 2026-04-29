@@ -1,37 +1,45 @@
 //! Sharpen filter.
+//!
+//! Enhances edges in an image using a Laplacian-based kernel.
 
 use crate::filters::convolution::{apply_kernel, BorderMode, Kernel};
 use crate::filters::Filter;
 use crate::{Result, SilvestreImage};
 
-/// Sharpen filter using a Laplacian-based kernel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Sharpen filter using a Laplacian-based 3x3 kernel.
+///
+/// This filter enhances edges by subtracting the Laplacian (second derivative)
+/// from the original image.
+///
+/// # Examples
+///
+/// ```
+/// use silvestre_core::filters::{Filter, SharpenFilter};
+/// use silvestre_core::{ColorSpace, SilvestreImage};
+///
+/// let img = SilvestreImage::new(vec![100; 25], 5, 5, ColorSpace::Grayscale).unwrap();
+/// let filter = SharpenFilter::new().unwrap();
+/// let out = filter.apply(&img).unwrap();
+/// assert_eq!(out.width(), 5);
+/// ```
+#[derive(Debug, Clone)]
 pub struct SharpenFilter {
+    kernel: Kernel,
     border: BorderMode,
 }
 
 impl SharpenFilter {
     /// Create a new sharpen filter with default border mode (Clamp).
-    #[must_use]
-    pub fn new() -> Self {
+    /// 
+    /// Returns an error if the kernel cannot be created.
+    pub fn new() -> Result<Self> {
         Self::with_border(BorderMode::Clamp)
     }
 
     /// Create a new sharpen filter with a specific border mode.
-    #[must_use]
-    pub fn with_border(border: BorderMode) -> Self {
-        Self { border }
-    }
-}
-
-impl Default for SharpenFilter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Filter for SharpenFilter {
-    fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+    /// 
+    /// Returns an error if the kernel cannot be created.
+    pub fn with_border(border: BorderMode) -> Result<Self> {
         let kernel = Kernel::square(
             vec![
                  0.0, -1.0,  0.0,
@@ -40,7 +48,19 @@ impl Filter for SharpenFilter {
             ],
             3,
         )?;
-        apply_kernel(image, &kernel, self.border)
+        Ok(Self { kernel, border })
+    }
+}
+
+impl Default for SharpenFilter {
+    fn default() -> Self {
+        Self::new().expect("Failed to create default SharpenFilter")
+    }
+}
+
+impl Filter for SharpenFilter {
+    fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        apply_kernel(image, &self.kernel, self.border)
     }
 }
 
@@ -48,13 +68,12 @@ impl Filter for SharpenFilter {
 mod tests {
     use super::*;
     use crate::ColorSpace;
-    use crate::filters::Filter;
 
     #[test]
     fn sharpen_enhances_contrast() {
         let pixels = vec![100, 100, 100, 100, 200, 100, 100, 100, 100];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
-        let filter = SharpenFilter::new();
+        let filter = SharpenFilter::new().unwrap();
         let out = filter.apply(&img).unwrap();
         // The center pixel (200) has lower-valued neighbors (100). 
         // Sharpening should push it higher.
@@ -65,7 +84,7 @@ mod tests {
     fn sharpen_grayscale_image() {
         let pixels = vec![0, 0, 0, 0, 255, 0, 0, 0, 0];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
-        let filter = SharpenFilter::new();
+        let filter = SharpenFilter::new().unwrap();
         let out = filter.apply(&img).unwrap();
         assert_eq!(out.width(), 3);
         assert_eq!(out.height(), 3);
@@ -82,7 +101,7 @@ mod tests {
             0, 0, 0,  0, 0, 0,  0, 0, 0,
         ];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Rgb).unwrap();
-        let filter = SharpenFilter::new();
+        let filter = SharpenFilter::new().unwrap();
         let out = filter.apply(&img).unwrap();
         assert_eq!(out.color_space(), ColorSpace::Rgb);
         // Center pixel (100, 100, 100) should be enhanced.
@@ -96,7 +115,7 @@ mod tests {
     fn sharpen_uniform_image_preserves_values() {
         let pixels = vec![100; 9];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
-        let filter = SharpenFilter::new();
+        let filter = SharpenFilter::new().unwrap();
         let out = filter.apply(&img).unwrap();
         // Kernel sum is 1.0, so uniform area should remain uniform.
         assert_eq!(out.pixels()[4], 100);
@@ -108,7 +127,7 @@ mod tests {
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
         
         // Zero border padding.
-        let filter = SharpenFilter::with_border(BorderMode::Zero);
+        let filter = SharpenFilter::with_border(BorderMode::Zero).unwrap();
         let out = filter.apply(&img).unwrap();
         // Edge pixels will change because they see the 0 border.
         // (0,0) pixel sees: 0 0 0; 0 100 100; 0 100 100
