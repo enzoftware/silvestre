@@ -139,9 +139,28 @@ impl RotateFilter {
         )
     }
 
-    /// 90° rotation: placeholder for next task.
-    fn rotate_90(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
-        todo!("Implement 90° rotation")
+    /// 90° rotation: counter-clockwise, swaps dimensions.
+    fn rotate_90(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        let src_w = image.width() as usize;
+        let src_h = image.height() as usize;
+        let channels = image.color_space().channels();
+        let src = image.pixels();
+
+        let dst_w = src_h;
+        let dst_h = src_w;
+        let mut dst = vec![0u8; src.len()];
+
+        for src_y in 0..src_h {
+            for src_x in 0..src_w {
+                let dst_x = src_y;
+                let dst_y = src_w - 1 - src_x;
+                let src_off = (src_y * src_w + src_x) * channels;
+                let dst_off = (dst_y * dst_w + dst_x) * channels;
+                dst[dst_off..dst_off + channels].copy_from_slice(&src[src_off..src_off + channels]);
+            }
+        }
+
+        SilvestreImage::new(dst, dst_w as u32, dst_h as u32, image.color_space())
     }
 
     /// 180° rotation: equivalent to mirroring both horizontally and vertically.
@@ -233,5 +252,57 @@ mod tests {
             .apply(&img)
             .unwrap();
         assert_eq!(rotated.pixels(), mirror_both.pixels());
+    }
+
+    // Task 4: 90° Rotation Tests
+    #[test]
+    fn rotate_90_swaps_dimensions() {
+        let img = gray(4, 3, vec![1; 12]);
+        let rotated = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 3);
+        assert_eq!(rotated.height(), 4);
+    }
+
+    #[test]
+    fn rotate_90_pixel_positions_ccw() {
+        let img = gray(3, 2, vec![1, 2, 3, 4, 5, 6]);
+        let rotated = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 2);
+        assert_eq!(rotated.height(), 3);
+        assert_eq!(rotated.get_pixel(0, 0).unwrap(), &[3]);
+        assert_eq!(rotated.get_pixel(1, 0).unwrap(), &[6]);
+        assert_eq!(rotated.get_pixel(0, 1).unwrap(), &[2]);
+        assert_eq!(rotated.get_pixel(1, 1).unwrap(), &[5]);
+        assert_eq!(rotated.get_pixel(0, 2).unwrap(), &[1]);
+        assert_eq!(rotated.get_pixel(1, 2).unwrap(), &[4]);
+    }
+
+    #[test]
+    fn rotate_90_four_times_returns_original() {
+        let pixels: Vec<u8> = (0..12).collect();
+        let img = gray(4, 3, pixels.clone());
+        let filter = RotateFilter::new(90.0, 255, [255, 255, 255]);
+        let r1 = filter.apply(&img).unwrap();
+        let r2 = filter.apply(&r1).unwrap();
+        let r3 = filter.apply(&r2).unwrap();
+        let r4 = filter.apply(&r3).unwrap();
+        assert_eq!(r4.width(), 4);
+        assert_eq!(r4.height(), 3);
+        assert_eq!(r4.pixels(), &pixels);
+    }
+
+    #[test]
+    fn rotate_90_square_image() {
+        let img = gray(2, 2, vec![1, 2, 3, 4]);
+        let rotated = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 2);
+        assert_eq!(rotated.height(), 2);
+        assert_eq!(rotated.pixels(), &[2, 4, 1, 3]);
     }
 }
