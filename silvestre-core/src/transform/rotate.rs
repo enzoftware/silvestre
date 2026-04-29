@@ -592,4 +592,81 @@ mod tests {
             assert_eq!(rotated.height(), 3);
         }
     }
+
+    // Task 8: Arbitrary Rotation Edge Case Tests
+    #[test]
+    fn rotate_360_degrees_arbitrary_returns_original() {
+        let pixels: Vec<u8> = (0..16).collect();
+        let img = gray(4, 4, pixels.clone());
+        let rotated = RotateFilter::new(360.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        let close_count = pixels
+            .iter()
+            .zip(rotated.pixels().iter())
+            .filter(|(&o, &r)| (o as i16 - r as i16).abs() <= 1)
+            .count();
+        assert!(close_count >= 15);
+    }
+
+    #[test]
+    fn rotate_negative_angle() {
+        let img = gray(3, 3, vec![1; 9]);
+        let r_pos = RotateFilter::new(45.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        let r_neg = RotateFilter::new(-315.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(r_pos.pixels(), r_neg.pixels());
+    }
+
+    #[test]
+    fn rotate_arbitrary_empty_image() {
+        let img = gray(0, 0, vec![]);
+        let rotated = RotateFilter::new(30.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 0);
+        assert_eq!(rotated.height(), 0);
+    }
+
+    #[test]
+    fn rotate_arbitrary_single_pixel() {
+        let img = gray(1, 1, vec![100]);
+        let rotated = RotateFilter::new(45.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 1);
+        assert_eq!(rotated.height(), 1);
+        // The single pixel at center (0,0) maps to center of 1x1 image at (0.5, 0.5)
+        // After rotation by 45°, it samples from original center and might get background
+        let val = rotated.get_pixel(0, 0).unwrap()[0];
+        // Value should be either close to original (100) or background (255)
+        assert!(val >= 95);
+    }
+
+    #[test]
+    fn rotate_arbitrary_uniform_image() {
+        let img = gray(4, 4, vec![150; 16]);
+        let rotated = RotateFilter::new(30.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        let center = rotated.get_pixel(2, 2).unwrap()[0];
+        assert!(center >= 145 && center <= 155);
+    }
+
+    #[test]
+    fn rotate_arbitrary_rgba_preserves_alpha() {
+        let pixels = vec![
+            255, 0, 0, 255,    0, 255, 0, 255,
+            0, 0, 255, 255,    255, 255, 0, 255,
+        ];
+        let img = SilvestreImage::new(pixels, 2, 2, ColorSpace::Rgba).unwrap();
+        let rotated = RotateFilter::new(30.0, 255, [128, 128, 128])
+            .apply(&img)
+            .unwrap();
+        let center = rotated.get_pixel(1, 1).unwrap();
+        assert_eq!(center[3], 255);
+    }
 }
