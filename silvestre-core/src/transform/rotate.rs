@@ -173,9 +173,11 @@ impl RotateFilter {
         SilvestreImage::new(dst, image.width(), image.height(), image.color_space())
     }
 
-    /// 270° rotation: placeholder for next task.
-    fn rotate_270(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
-        todo!("Implement 270° rotation")
+    /// 270° rotation: clockwise, composed of three 90° rotations.
+    fn rotate_270(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        let r1 = self.rotate_90(image)?;
+        let r2 = self.rotate_90(&r1)?;
+        self.rotate_90(&r2)
     }
 
     /// Arbitrary angle rotation with bilinear interpolation.
@@ -304,5 +306,59 @@ mod tests {
         assert_eq!(rotated.width(), 2);
         assert_eq!(rotated.height(), 2);
         assert_eq!(rotated.pixels(), &[2, 4, 1, 3]);
+    }
+
+    // Task 5: 270° Rotation Tests
+    #[test]
+    fn rotate_270_swaps_dimensions() {
+        let img = gray(4, 3, vec![1; 12]);
+        let rotated = RotateFilter::new(270.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 3);
+        assert_eq!(rotated.height(), 4);
+    }
+
+    #[test]
+    fn rotate_270_pixel_positions_cw() {
+        let img = gray(3, 2, vec![1, 2, 3, 4, 5, 6]);
+        let rotated = RotateFilter::new(270.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 2);
+        assert_eq!(rotated.height(), 3);
+        assert_eq!(rotated.get_pixel(0, 0).unwrap(), &[4]);
+        assert_eq!(rotated.get_pixel(1, 0).unwrap(), &[1]);
+        assert_eq!(rotated.get_pixel(0, 1).unwrap(), &[5]);
+        assert_eq!(rotated.get_pixel(1, 1).unwrap(), &[2]);
+        assert_eq!(rotated.get_pixel(0, 2).unwrap(), &[6]);
+        assert_eq!(rotated.get_pixel(1, 2).unwrap(), &[3]);
+    }
+
+    #[test]
+    fn rotate_270_equals_three_90_rotations() {
+        let pixels: Vec<u8> = (0..12).collect();
+        let img = gray(4, 3, pixels);
+        let filter_90 = RotateFilter::new(90.0, 255, [255, 255, 255]);
+        let r1 = filter_90.apply(&img).unwrap();
+        let r2 = filter_90.apply(&r1).unwrap();
+        let r3 = filter_90.apply(&r2).unwrap();
+        let r270 = RotateFilter::new(270.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(r3.pixels(), r270.pixels());
+    }
+
+    #[test]
+    fn rotate_270_round_trip_with_90() {
+        let pixels: Vec<u8> = (0..12).collect();
+        let img = gray(4, 3, pixels.clone());
+        let r270 = RotateFilter::new(270.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        let r90 = RotateFilter::new(90.0, 255, [255, 255, 255])
+            .apply(&r270)
+            .unwrap();
+        assert_eq!(r90.pixels(), &pixels);
     }
 }
