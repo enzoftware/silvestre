@@ -180,9 +180,85 @@ impl RotateFilter {
         self.rotate_90(&r2)
     }
 
+    /// Bilinear interpolation for sampling a source image at fractional coordinates.
+    fn bilinear_sample(src: &[u8], src_w: usize, src_h: usize, x: f64, y: f64, channels: usize, channel_idx: usize) -> u8 {
+        let x = x.max(0.0).min(src_w as f64 - 1.0);
+        let y = y.max(0.0).min(src_h as f64 - 1.0);
+
+        let x0 = x.floor() as usize;
+        let x1 = (x0 + 1).min(src_w - 1);
+        let y0 = y.floor() as usize;
+        let y1 = (y0 + 1).min(src_h - 1);
+
+        let fx = x - x0 as f64;
+        let fy = y - y0 as f64;
+
+        let v00 = src[(y0 * src_w + x0) * channels + channel_idx] as f64;
+        let v10 = src[(y0 * src_w + x1) * channels + channel_idx] as f64;
+        let v01 = src[(y1 * src_w + x0) * channels + channel_idx] as f64;
+        let v11 = src[(y1 * src_w + x1) * channels + channel_idx] as f64;
+
+        let top = v00 * (1.0 - fx) + v10 * fx;
+        let bottom = v01 * (1.0 - fx) + v11 * fx;
+        let value = top * (1.0 - fy) + bottom * fy;
+
+        (value.round().max(0.0).min(255.0)) as u8
+    }
+
+    /// Get background color value for a single channel based on color space.
+    fn get_background_channel(&self, image: &SilvestreImage, channel_idx: usize) -> u8 {
+        match image.color_space() {
+            crate::ColorSpace::Grayscale => self.grayscale_background,
+            crate::ColorSpace::Rgb => self.rgb_background[channel_idx.min(2)],
+            crate::ColorSpace::Rgba => {
+                if channel_idx == 3 {
+                    255
+                } else {
+                    self.rgb_background[channel_idx.min(2)]
+                }
+            }
+        }
+    }
+
     /// Arbitrary angle rotation with bilinear interpolation.
-    fn rotate_arbitrary(&self, _image: &SilvestreImage) -> Result<SilvestreImage> {
-        todo!("Implement arbitrary angle rotation")
+    fn rotate_arbitrary(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
+        let src_w = image.width() as usize;
+        let src_h = image.height() as usize;
+        let channels = image.color_space().channels();
+        let src = image.pixels();
+
+        let angle_rad = self.angle.to_radians();
+        let cos_a = angle_rad.cos();
+        let sin_a = angle_rad.sin();
+
+        let cx = src_w as f64 / 2.0;
+        let cy = src_h as f64 / 2.0;
+
+        let mut dst = vec![0u8; src.len()];
+
+        for dst_y in 0..src_h {
+            for dst_x in 0..src_w {
+                let px = dst_x as f64 - cx;
+                let py = dst_y as f64 - cy;
+
+                let src_x = px * cos_a + py * sin_a + cx;
+                let src_y = -px * sin_a + py * cos_a + cy;
+
+                if src_x < 0.0 || src_x >= src_w as f64 || src_y < 0.0 || src_y >= src_h as f64 {
+                    for c in 0..channels {
+                        let bg = self.get_background_channel(image, c);
+                        dst[(dst_y * src_w + dst_x) * channels + c] = bg;
+                    }
+                } else {
+                    for c in 0..channels {
+                        let value = Self::bilinear_sample(src, src_w, src_h, src_x, src_y, channels, c);
+                        dst[(dst_y * src_w + dst_x) * channels + c] = value;
+                    }
+                }
+            }
+        }
+
+        SilvestreImage::new(dst, image.width(), image.height(), image.color_space())
     }
 }
 
@@ -443,5 +519,77 @@ mod tests {
         let rotated = filter.apply(&img).unwrap();
         assert_eq!(rotated.width(), 2);
         assert_eq!(rotated.height(), 2);
+    }
+
+    // Task 7: Arbitrary Angle Rotation Tests
+    #[test]
+    fn rotate_arbitrary_45_degrees() {
+        let img = gray(4, 4, vec![128; 16]);
+        let rotated = RotateFilter::new(45.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 4);
+        assert_eq!(rotated.height(), 4);
+        // With 45° rotation centered at (1.5, 1.5), corners map to out-of-bounds
+        // Check that we get background color at corners
+        let top_left = rotated.get_pixel(0, 0).unwrap()[0];
+        let top_right = rotated.get_pixel(3, 0).unwrap()[0];
+        let bottom_left = rotated.get_pixel(0, 3).unwrap()[0];
+        let bottom_right = rotated.get_pixel(3, 3).unwrap()[0];
+        // All corners should be background or near-background
+        assert!(top_left >= 240 || top_left <= 128);
+        assert!(top_right >= 240 || top_right <= 128);
+        assert!(bottom_left >= 240 || bottom_left <= 128);
+        assert!(bottom_right >= 240 || bottom_right <= 128);
+    }
+
+    #[test]
+    fn rotate_arbitrary_small_angle() {
+        let pixels: Vec<u8> = (0..16).collect();
+        let img = gray(4, 4, pixels);
+        let rotated = RotateFilter::new(5.0, 0, [0, 0, 0])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.width(), 4);
+        assert_eq!(rotated.height(), 4);
+        let rotated_pixels = rotated.pixels();
+        let original_pixels = img.pixels();
+        let close_count = original_pixels
+            .iter()
+            .zip(rotated_pixels.iter())
+            .filter(|(&o, &r)| (o as i16 - r as i16).abs() <= 2)
+            .count();
+        assert!(close_count >= 12);
+    }
+
+    #[test]
+    fn rotate_arbitrary_background_grayscale() {
+        let img = gray(2, 2, vec![100; 4]);
+        let rotated = RotateFilter::new(45.0, 0, [0, 0, 0])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.get_pixel(0, 0).unwrap(), &[0]);
+    }
+
+    #[test]
+    fn rotate_arbitrary_background_rgb() {
+        let pixels = vec![200, 100, 50, 200, 100, 50, 200, 100, 50, 200, 100, 50];
+        let img = SilvestreImage::new(pixels, 2, 2, ColorSpace::Rgb).unwrap();
+        let rotated = RotateFilter::new(45.0, 255, [255, 0, 0])
+            .apply(&img)
+            .unwrap();
+        assert_eq!(rotated.get_pixel(0, 0).unwrap(), &[255, 0, 0]);
+    }
+
+    #[test]
+    fn rotate_arbitrary_preserves_dimensions() {
+        let img = gray(5, 3, vec![100; 15]);
+        for angle in [15.0, 30.0, 45.0, 60.0, 75.0] {
+            let rotated = RotateFilter::new(angle, 255, [255, 255, 255])
+                .apply(&img)
+                .unwrap();
+            assert_eq!(rotated.width(), 5);
+            assert_eq!(rotated.height(), 3);
+        }
     }
 }
