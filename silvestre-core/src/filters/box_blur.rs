@@ -126,11 +126,12 @@ mod tests {
         let filter_clamp = BoxBlurFilter::with_border(BorderMode::Clamp).unwrap();
         let out_clamp = filter_clamp.apply(&img).unwrap();
         
-        let filter_mirror = BoxBlurFilter::with_border(BorderMode::Mirror).unwrap();
-        let out_mirror = filter_mirror.apply(&img).unwrap();
+        let filter_zero = BoxBlurFilter::with_border(BorderMode::Zero).unwrap();
+        let out_zero = filter_zero.apply(&img).unwrap();
         
         // They should result in different values at the edges.
         assert_eq!(out_clamp.width(), 3);
-        assert_eq!(out_mirror.width(), 3);
+        assert_eq!(out_zero.width(), 3);
+        assert_ne!(out_clamp.pixels(), out_zero.pixels());
     }
 }
