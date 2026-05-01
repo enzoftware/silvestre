@@ -8,4 +8,7 @@ repository.workspace = true
 
 [dependencies]
 silvestre-core = { workspace = true }
+image = { workspace = true }
 clap = { version = "4", features = ["derive"] }
+indicatif = "0.17"
+thiserror = { workspace = true }
