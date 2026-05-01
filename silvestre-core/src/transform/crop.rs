@@ -152,16 +152,11 @@ impl Filter for CropFilter {
         for y in 0..crop_height {
             let src_y = start_y + y;
             let src_row_start = src_y * src_width * channels;
-            let dst_row_start = y * crop_width * channels;
+            let src_pixel_start = src_row_start + start_x * channels;
+            let dst_row_start = y * row_bytes;
 
-            for x in 0..crop_width {
-                let src_x = start_x + x;
-                let src_pixel_start = src_row_start + src_x * channels;
-                let dst_pixel_start = dst_row_start + x * channels;
-
-                dst[dst_pixel_start..dst_pixel_start + channels]
-                    .copy_from_slice(&src[src_pixel_start..src_pixel_start + channels]);
-            }
+            dst[dst_row_start..dst_row_start + row_bytes]
+                .copy_from_slice(&src[src_pixel_start..src_pixel_start + row_bytes]);
         }
 
         SilvestreImage::new(dst, self.width, self.height, image.color_space())
