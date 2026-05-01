@@ -20,7 +20,7 @@
 //!     ColorSpace::Grayscale,
 //! )?;
 //!
-//! // Crop the center 2×2 region starting at (0, 0)
+//! // Crop the top-left 2×2 region starting at (0, 0)
 //! let cropped = CropFilter::new(0, 0, 2, 2).apply(&img)?;
 //! // Result is a 2×2 image with pixels: [1, 2, 4, 5]
 //! assert_eq!(cropped.width(), 2);
