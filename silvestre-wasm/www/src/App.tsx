@@ -31,7 +31,7 @@ export default function App() {
         console.error("Filter error:", e);
       }
     },
-    [original, filtered, applyFilter]
+    [original, filtered, applyFilter],
   );
 
   const handleReset = useCallback(() => {
@@ -42,7 +42,9 @@ export default function App() {
     const image = filtered ?? original;
     if (!image) return;
     const bytes = image.toBytes("png");
-    const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/png" });
+    const blob = new Blob([bytes.slice().buffer as ArrayBuffer], {
+      type: "image/png",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -119,10 +121,7 @@ export default function App() {
               />
             </div>
             <div className="space-y-4">
-              <FilterPanel
-                disabled={processing}
-                onApply={handleApply}
-              />
+              <FilterPanel disabled={processing} onApply={handleApply} />
               <Separator />
               <Button
                 variant="ghost"
