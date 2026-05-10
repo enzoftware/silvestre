@@ -1,0 +1,26 @@
+[package]
+name = "silvestre-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WebAssembly bindings for the silvestre image processing library"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+silvestre-core = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+console_error_panic_hook = { workspace = true }
+
+[dependencies.web-sys]
+workspace = true
+features = ["ImageData"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
