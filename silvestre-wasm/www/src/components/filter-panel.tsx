@@ -154,7 +154,10 @@ function ParamControl({
     );
   }
 
-  const numValue = Number(value);
+  const numValue = typeof value === 'number' ? value : Number(value);
+  if (isNaN(numValue)) {
+    return null; // or show error state
+  }
 
   return (
     <div className="space-y-1">
@@ -167,7 +170,10 @@ function ParamControl({
           min={param.min}
           max={param.max}
           step={param.step}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (!isNaN(n)) onChange(n);
+          }}
           disabled={disabled}
         />
       </div>
