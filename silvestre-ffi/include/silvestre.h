@@ -7,6 +7,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+/**
+ * Opaque image handle. Created via silvestre_image_load() or
+ * silvestre_image_from_buffer(), freed via silvestre_image_free().
+ */
+typedef struct SilvestreImage SilvestreImage;
+
 
 /**
  * Return the version string of the silvestre library.
@@ -15,5 +21,140 @@
  * The returned pointer is valid for the lifetime of the program.
  */
 const char *silvestre_version(void);
+
+/**
+ * Load an image from a file path.
+ *
+ * Returns a heap-allocated opaque pointer on success, or null on error.
+ * The caller must free the returned pointer with [`silvestre_image_free`].
+ *
+ * # Safety
+ * `path` must be a valid, null-terminated UTF-8 string.
+ */
+SilvestreImage *silvestre_image_load(const char *path);
+
+/**
+ * Create an image from a raw pixel buffer.
+ *
+ * The pixel data is copied. The buffer must contain exactly `w * h * 4` bytes
+ * (RGBA, row-major order).
+ *
+ * Returns a heap-allocated opaque pointer on success, or null on error.
+ *
+ * # Safety
+ * `data` must point to at least `len` valid bytes.
+ */
+SilvestreImage *silvestre_image_from_buffer(const uint8_t *data,
+                                            uintptr_t len,
+                                            uint32_t w,
+                                            uint32_t h);
+
+/**
+ * Free an image previously returned by `silvestre_image_load` or
+ * `silvestre_image_from_buffer`.
+ *
+ * Passing null is a no-op. Passing the same pointer twice is undefined behaviour.
+ *
+ * # Safety
+ * `img` must be a pointer previously returned by this library, or null.
+ */
+void silvestre_image_free(SilvestreImage *img);
+
+/**
+ * Return the width of the image in pixels, or 0 if `img` is null.
+ *
+ * # Safety
+ * `img` must be a valid pointer or null.
+ */
+uint32_t silvestre_image_width(const SilvestreImage *img);
+
+/**
+ * Return the height of the image in pixels, or 0 if `img` is null.
+ *
+ * # Safety
+ * `img` must be a valid pointer or null.
+ */
+uint32_t silvestre_image_height(const SilvestreImage *img);
+
+/**
+ * Return a pointer to the raw pixel data of the image.
+ *
+ * The returned pointer is valid until the image is freed or mutated
+ * (e.g. by [`silvestre_apply_filter`]). Callers should copy the data
+ * before calling any mutating operation.
+ * Returns null if `img` is null.
+ *
+ * # Safety
+ * `img` must be a valid pointer or null.
+ */
+const uint8_t *silvestre_image_pixels(const SilvestreImage *img);
+
+/**
+ * Return the size of the pixel buffer in bytes, or 0 if `img` is null.
+ *
+ * # Safety
+ * `img` must be a valid pointer or null.
+ */
+uintptr_t silvestre_image_pixels_len(const SilvestreImage *img);
+
+/**
+ * Save the image to a file.
+ *
+ * `format` is a null-terminated string: `"png"`, `"jpeg"`, or `"bmp"`.
+ * If `format` is null, the format is inferred from the file extension.
+ *
+ * Returns 0 on success, -1 on error.
+ *
+ * # Safety
+ * `img`, `path` must be valid pointers. `format` may be null.
+ */
+int32_t silvestre_image_save(const SilvestreImage *img, const char *path, const char *format);
+
+/**
+ * Apply a named filter to the image, replacing its contents in place.
+ *
+ * `filter_name` is a null-terminated string identifying the filter.
+ * `params` is a null-terminated JSON string with filter parameters (may be null
+ * for filters that take no parameters).
+ *
+ * Supported filters and their JSON params:
+ *
+ * | filter_name   | params (JSON)                                           |
+ * |---------------|---------------------------------------------------------|
+ * | `grayscale`   | *(none)*                                                |
+ * | `invert`      | *(none)*                                                |
+ * | `sepia`       | *(none)*                                                |
+ * | `brightness`  | `{"delta": <i32>}`                                      |
+ * | `contrast`    | `{"factor": <f32>}`                                     |
+ * | `gaussian`    | `{"sigma": <f32>}`                                      |
+ * | `median`      | `{"size": <usize>}`                                     |
+ * | `sharpen`     | *(none)*                                                |
+ * | `box_blur`    | *(none)*                                                |
+ * | `sobel`       | *(none)*                                                |
+ * | `canny`       | `{"low": <f32>, "high": <f32>, "sigma": <f32>}`        |
+ * | `crop`        | `{"x": <u32>, "y": <u32>, "w": <u32>, "h": <u32>}`     |
+ * | `resize`      | `{"w": <u32>, "h": <u32>}`                              |
+ * | `rotate`      | `{"angle": <f64>}`                                      |
+ * | `mirror`      | `{"mode": "horizontal"|"vertical"|"both"}`              |
+ *
+ * Returns 0 on success, -1 on error.
+ *
+ * # Safety
+ * `img` must be a valid mutable pointer. `filter_name` must be valid.
+ * `params` may be null.
+ */
+int32_t silvestre_apply_filter(SilvestreImage *img, const char *filter_name, const char *params);
+
+/**
+ * Return a pointer to the last error message for the current thread.
+ *
+ * Returns null if no error has occurred. The pointer is valid until the next
+ * FFI call on the same thread. Callers should copy the string immediately
+ * if they need to preserve it.
+ *
+ * # Safety
+ * Must be called from the same thread that triggered the error.
+ */
+const char *silvestre_last_error(void);
 
 #endif  /* SILVESTRE_H */
