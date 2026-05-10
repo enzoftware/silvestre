@@ -7,6 +7,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+/**
+ * Opaque image handle. Created via silvestre_image_load() or
+ * silvestre_image_from_buffer(), freed via silvestre_image_free().
+ */
+typedef struct SilvestreImage SilvestreImage;
+
 
 /**
  * Return the version string of the silvestre library.
