@@ -149,27 +149,28 @@ fn get_f64(params: &serde_json::Value, key: &str) -> Result<f64, JsValue> {
 }
 
 fn get_i32(params: &serde_json::Value, key: &str) -> Result<i32, JsValue> {
-    params
+    let raw = params
         .get(key)
         .and_then(|v| v.as_i64())
-        .map(|v| v as i32)
-        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))
+        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))?;
+    i32::try_from(raw).map_err(|_| JsValue::from_str(&format!("param out of range: {key}")))
 }
 
 fn get_u32(params: &serde_json::Value, key: &str) -> Result<u32, JsValue> {
-    params
+    let raw = params
         .get(key)
         .and_then(|v| v.as_u64())
-        .map(|v| v as u32)
-        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))
+        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))?;
+    u32::try_from(raw).map_err(|_| JsValue::from_str(&format!("param out of range: {key}")))
 }
 
 fn get_usize(params: &serde_json::Value, key: &str) -> Result<usize, JsValue> {
-    params
+    let raw = params
         .get(key)
         .and_then(|v| v.as_u64())
-        .map(|v| v as usize)
-        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))
+        .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))?;
+    usize::try_from(raw).map_err(|_| JsValue::from_str(&format!("param out of range: {key}")))
+}
 }
 
 fn get_str(params: &serde_json::Value, key: &str) -> Result<String, JsValue> {
