@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:wasm": "cd .. && PATH=\"$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH\" wasm-pack build --target web --out-dir pkg",
+    "build:wasm": "cd .. && wasm-pack build --target web --out-dir pkg",
     "lint": "eslint .",
     "preview": "vite preview"
   },
