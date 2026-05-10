@@ -8,4 +8,10 @@ repository.workspace = true
 
 [dependencies]
 silvestre-core = { workspace = true }
-clap = { version = "4", features = ["derive"] }
+image = { workspace = true }
+thiserror = { workspace = true }
+ratatui = "0.28"
+crossterm = "0.28"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
