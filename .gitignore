@@ -1,2 +1,5 @@
 /target
 .worktrees/
+silvestre-wasm/pkg/
+silvestre-wasm/www/node_modules/
+silvestre-wasm/www/dist/
