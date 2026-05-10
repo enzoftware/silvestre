@@ -12,7 +12,3 @@ createRoot(rootElement).render(
     <App />
   </StrictMode>,
 )
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)

@@ -171,7 +171,6 @@ fn get_usize(params: &serde_json::Value, key: &str) -> Result<usize, JsValue> {
         .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))?;
     usize::try_from(raw).map_err(|_| JsValue::from_str(&format!("param out of range: {key}")))
 }
-}
 
 fn get_str(params: &serde_json::Value, key: &str) -> Result<String, JsValue> {
     params
@@ -202,9 +201,7 @@ fn apply_named_filter(
         // Effects with params
         "brightness" => {
             let delta = get_i32(params, "delta")?;
-            BrightnessFilter::new(delta)
-                .apply(image)
-                .map_err(err_to_js)
+            BrightnessFilter::new(delta).apply(image).map_err(err_to_js)
         }
         "contrast" => {
             let factor = get_f32(params, "factor")?;
@@ -245,20 +242,14 @@ fn apply_named_filter(
             let y = get_u32(params, "y")?;
             let w = get_u32(params, "w")?;
             let h = get_u32(params, "h")?;
-            CropFilter::new(x, y, w, h)
-                .apply(image)
-                .map_err(err_to_js)
+            CropFilter::new(x, y, w, h).apply(image).map_err(err_to_js)
         }
         "resize" => {
             let w = get_u32(params, "w")?;
             let h = get_u32(params, "h")?;
-            ResizeFilter::new(
-                w,
-                h,
-                silvestre_core::transform::Interpolation::Bilinear,
-            )
-            .apply(image)
-            .map_err(err_to_js)
+            ResizeFilter::new(w, h, silvestre_core::transform::Interpolation::Bilinear)
+                .apply(image)
+                .map_err(err_to_js)
         }
         "rotate" => {
             let angle = get_f64(params, "angle")?;
@@ -272,11 +263,13 @@ fn apply_named_filter(
                 "horizontal" => MirrorMode::Horizontal,
                 "vertical" => MirrorMode::Vertical,
                 "both" => MirrorMode::Both,
-                _ => return Err(JsValue::from_str(&format!("unknown mirror mode: {mode_str}"))),
+                _ => {
+                    return Err(JsValue::from_str(&format!(
+                        "unknown mirror mode: {mode_str}"
+                    )))
+                }
             };
-            MirrorFilter::new(mode)
-                .apply(image)
-                .map_err(err_to_js)
+            MirrorFilter::new(mode).apply(image).map_err(err_to_js)
         }
 
         _ => Err(JsValue::from_str(&format!("unknown filter: {name}"))),

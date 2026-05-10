@@ -1,10 +1,5 @@
-import { useState, useCallback } from "react";
-import type { WasmImage } from "silvestre-wasm";
-
-export function useFilter() {
-  const [processing, setProcessing] = useState(false);
-
 import { useState, useCallback, useRef } from "react";
+import type { WasmImage } from "silvestre-wasm";
 
 export function useFilter() {
   const [processing, setProcessing] = useState(false);
@@ -27,10 +22,6 @@ export function useFilter() {
         inFlight.current -= 1;
         if (inFlight.current === 0) setProcessing(false);
       }
-    },
-    []
-  );
-}
     },
     []
   );
