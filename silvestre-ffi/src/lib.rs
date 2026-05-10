@@ -56,6 +56,7 @@ fn clear_last_error() {
 /// The returned pointer is valid for the lifetime of the program.
 #[no_mangle]
 pub extern "C" fn silvestre_version() -> *const c_char {
+    clear_last_error();
     concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr().cast()
 }
 
@@ -140,6 +141,7 @@ pub unsafe extern "C" fn silvestre_image_from_buffer(
 /// `img` must be a pointer previously returned by this library, or null.
 #[no_mangle]
 pub unsafe extern "C" fn silvestre_image_free(img: *mut SilvestreImage) {
+    clear_last_error();
     if !img.is_null() {
         drop(unsafe { Box::from_raw(img) });
     }
@@ -155,6 +157,7 @@ pub unsafe extern "C" fn silvestre_image_free(img: *mut SilvestreImage) {
 /// `img` must be a valid pointer or null.
 #[no_mangle]
 pub unsafe extern "C" fn silvestre_image_width(img: *const SilvestreImage) -> u32 {
+    clear_last_error();
     if img.is_null() {
         set_last_error("image pointer is null");
         return 0;
@@ -168,6 +171,7 @@ pub unsafe extern "C" fn silvestre_image_width(img: *const SilvestreImage) -> u3
 /// `img` must be a valid pointer or null.
 #[no_mangle]
 pub unsafe extern "C" fn silvestre_image_height(img: *const SilvestreImage) -> u32 {
+    clear_last_error();
     if img.is_null() {
         set_last_error("image pointer is null");
         return 0;
@@ -186,6 +190,7 @@ pub unsafe extern "C" fn silvestre_image_height(img: *const SilvestreImage) -> u
 /// `img` must be a valid pointer or null.
 #[no_mangle]
 pub unsafe extern "C" fn silvestre_image_pixels(img: *const SilvestreImage) -> *const u8 {
+    clear_last_error();
     if img.is_null() {
         set_last_error("image pointer is null");
         return ptr::null();
@@ -199,6 +204,7 @@ pub unsafe extern "C" fn silvestre_image_pixels(img: *const SilvestreImage) -> *
 /// `img` must be a valid pointer or null.
 #[no_mangle]
 pub unsafe extern "C" fn silvestre_image_pixels_len(img: *const SilvestreImage) -> usize {
+    clear_last_error();
     if img.is_null() {
         set_last_error("image pointer is null");
         return 0;
@@ -1013,6 +1019,37 @@ mod tests {
             let img = make_test_image();
             // After successful from_buffer, last error should be cleared
             assert!(silvestre_last_error().is_null());
+            silvestre_image_free(img);
+        }
+    }
+
+    #[test]
+    fn test_query_functions_clear_stale_error() {
+        unsafe {
+            // Trigger an error
+            let _ = silvestre_image_load(ptr::null());
+            assert!(!silvestre_last_error().is_null());
+
+            // A successful query call should clear the stale error
+            let img = make_test_image();
+            silvestre_image_width(img);
+            assert!(silvestre_last_error().is_null());
+
+            // Trigger error again, then check height clears it
+            let _ = silvestre_image_load(ptr::null());
+            assert!(!silvestre_last_error().is_null());
+            silvestre_image_height(img);
+            assert!(silvestre_last_error().is_null());
+
+            // Same for pixels and pixels_len
+            let _ = silvestre_image_load(ptr::null());
+            silvestre_image_pixels(img);
+            assert!(silvestre_last_error().is_null());
+
+            let _ = silvestre_image_load(ptr::null());
+            silvestre_image_pixels_len(img);
+            assert!(silvestre_last_error().is_null());
+
             silvestre_image_free(img);
         }
     }
