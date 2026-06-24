@@ -1,11 +1,52 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
+
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show ExternalLibrary;
 
 import 'src/rust/api/analysis.dart' as rust_analysis;
 import 'src/rust/api/filters.dart' as rust_filters;
 import 'src/rust/api/image.dart' as rust_image;
+import 'src/rust/frb_generated.dart';
 
 export 'src/rust/frb_generated.dart' show RustLib;
+
+/// Initializes the silvestre Rust runtime.
+///
+/// Call this once before using any other API, typically in `main()`:
+///
+/// ```dart
+/// void main() async {
+///   WidgetsFlutterBinding.ensureInitialized();
+///   await Silvestre.init();
+///   runApp(const MyApp());
+/// }
+/// ```
+///
+/// On iOS and macOS the Rust static library is force-linked into the plugin's
+/// own framework, so the symbols already live in the running process. We load
+/// them with [ExternalLibrary.process] instead of the default framework lookup,
+/// which would otherwise search for a non-existent
+/// `silvestre_flutter_rust.framework`. Other platforms use the default loader.
+class Silvestre {
+  const Silvestre._();
+
+  /// Whether the runtime has already been initialized.
+  static bool get isInitialized => RustLib.instance.initialized;
+
+  /// Loads the native library and initializes flutter_rust_bridge.
+  ///
+  /// Safe to call multiple times; subsequent calls are a no-op.
+  static Future<void> init() async {
+    if (RustLib.instance.initialized) return;
+    final externalLibrary =
+        (Platform.isIOS || Platform.isMacOS)
+            ? ExternalLibrary.process(iKnowHowToUseIt: true)
+            : null;
+    await RustLib.init(externalLibrary: externalLibrary);
+  }
+}
 
 /// Image color space.
 enum ColorSpace {

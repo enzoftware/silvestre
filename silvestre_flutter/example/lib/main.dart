@@ -4,7 +4,7 @@ import 'package:silvestre_flutter_example/src/editor/editor.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await RustLib.init();
+  await Silvestre.init();
   runApp(const SilvestreExampleApp());
 }
 

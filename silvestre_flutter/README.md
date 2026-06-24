@@ -86,17 +86,22 @@ dependencies:
 
 ### Initialize
 
-Call `RustLib.init()` once before using any silvestre API, typically in `main()`:
+Call `Silvestre.init()` once before using any silvestre API, typically in `main()`:
 
 ```dart
 import 'package:silvestre_flutter/silvestre_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await RustLib.init();
+  await Silvestre.init();
   runApp(MyApp());
 }
 ```
+
+> `Silvestre.init()` wraps `RustLib.init()` and selects the correct native
+> library loader per platform. On iOS/macOS the Rust code is force-linked into
+> the plugin framework, so it loads the symbols from the running process rather
+> than searching for a standalone framework.
 
 ### Load an image
 
