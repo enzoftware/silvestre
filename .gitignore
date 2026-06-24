@@ -3,3 +3,5 @@
 silvestre-wasm/pkg/
 silvestre-wasm/www/node_modules/
 silvestre-wasm/www/dist/
+
+# The Flutter plugin manages its own ignores in silvestre_flutter/.gitignore.

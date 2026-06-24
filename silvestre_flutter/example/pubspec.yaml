@@ -1,0 +1,29 @@
+name: silvestre_flutter_example
+description: Example app for silvestre_flutter plugin.
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.7.0
+  flutter: ">=3.3.0"
+
+dependencies:
+  equatable: ^2.0.5
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.0.0
+  image_picker: ^1.1.2
+  path_provider: ^2.1.5
+  share_plus: ^10.1.4
+  silvestre_flutter:
+    path: ../
+
+dev_dependencies:
+  bloc_test: ^10.0.0
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  very_good_analysis: ^10.2.0
+
+flutter:
+  uses-material-design: true

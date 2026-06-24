@@ -5,6 +5,7 @@ members = [
     "silvestre-ffi",
     "silvestre-cli",
     "silvestre-wasm",
+    "silvestre_flutter/rust",
 ]
 
 [workspace.package]
