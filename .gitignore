@@ -4,10 +4,4 @@ silvestre-wasm/pkg/
 silvestre-wasm/www/node_modules/
 silvestre-wasm/www/dist/
 
-# Flutter plugin
-silvestre_flutter/.dart_tool/
-silvestre_flutter/build/
-silvestre_flutter/pubspec.lock
-silvestre_flutter/rust/Cargo.lock
-silvestre_flutter/example/.dart_tool/
-silvestre_flutter/example/build/
+# The Flutter plugin manages its own ignores in silvestre_flutter/.gitignore.

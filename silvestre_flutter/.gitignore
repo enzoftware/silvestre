@@ -1,0 +1,33 @@
+# Flutter / Dart / Pub
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.fvm/
+doc/api/
+
+# The library lockfile is not committed for published packages; the example
+# app's lockfile is also intentionally excluded since the example is a demo,
+# not a shipped application.
+pubspec.lock
+example/pubspec.lock
+
+# Note: cargokit/ is vendored build glue and stays tracked. Its build_tool
+# pubspec.lock is force-included by cargokit's own .gitignore, so we leave it.
+
+# Rust build output (the FFI target dir lives under example/build via cargokit;
+# the standalone rust target dir, if ever produced, is ignored here too).
+rust/target/
+rust/Cargo.lock
+
+# CocoaPods (pods + lockfile are regenerated from the podspec on each build).
+example/ios/Podfile.lock
+example/macos/Podfile.lock
+
+# Generated plugin registrants (recreated by `flutter run` for every platform).
+example/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# macOS / IDE noise
+.DS_Store
+*.iml
