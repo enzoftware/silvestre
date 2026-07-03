@@ -1,4 +1,5 @@
 mod app;
+mod filters;
 mod ui;
 mod handlers;
 
@@ -51,6 +52,7 @@ fn run_app<B: Backend>(
                         match key.code {
                             KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                             KeyCode::Char('f') => app.go_to_filter_menu(),
+                            KeyCode::Char('p') => app.go_to_pipeline(),
                             KeyCode::Char('i') => app.go_to_info(),
                             KeyCode::Char('h') => app.go_to_help(),
                             _ => {}
@@ -77,6 +79,25 @@ fn run_app<B: Backend>(
                                     app.apply_filter_action();
                                 }
                             }
+                            _ => {}
+                        }
+                    }
+                    app::Screen::Pipeline => {
+                        // Ctrl-based chords drive actions so plain letters can
+                        // still be typed into the focused input field.
+                        let ctrl = key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL);
+                        match key.code {
+                            KeyCode::Esc => app.go_to_main(),
+                            KeyCode::Tab => app.pipeline_next_field(),
+                            KeyCode::BackTab => app.pipeline_prev_field(),
+                            KeyCode::Enter => app.pipeline_add_step(),
+                            KeyCode::Char('r') if ctrl => app.pipeline_run_action(),
+                            KeyCode::Char('d') if ctrl => app.pipeline_remove_last(),
+                            KeyCode::Char('x') if ctrl => app.pipeline_clear(),
+                            KeyCode::Char(c) => app.pipeline_input_char(c),
+                            KeyCode::Backspace => app.pipeline_input_backspace(),
                             _ => {}
                         }
                     }

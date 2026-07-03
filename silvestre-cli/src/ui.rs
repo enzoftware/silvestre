@@ -1,6 +1,6 @@
 //! UI rendering with ratatui
 
-use crate::app::{App, Screen};
+use crate::app::{App, PipelineField, Screen};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -14,6 +14,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         Screen::Main => draw_main(f, app),
         Screen::FilterMenu => draw_filter_menu(f, app),
         Screen::ApplyFilter => draw_apply_filter(f, app),
+        Screen::Pipeline => draw_pipeline(f, app),
         Screen::Info => draw_info(f, app),
         Screen::Help => draw_help(f, app),
         Screen::Processing => draw_processing(f, app),
@@ -58,6 +59,12 @@ fn draw_main(f: &mut Frame, app: &App) {
             Span::styled("f", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             Span::raw(" to apply a "),
             Span::styled("filter", Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::raw("Press "),
+            Span::styled("p", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::raw(" to build a filter "),
+            Span::styled("pipeline", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
@@ -243,6 +250,152 @@ fn draw_apply_filter(f: &mut Frame, app: &App) {
     f.render_widget(status, chunks[5]);
 }
 
+/// Render a single bordered text-input box for the pipeline screen,
+/// highlighting it when `field` is the currently focused field.
+fn render_pipeline_input(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    value: &str,
+    title: &str,
+    field: PipelineField,
+    app: &App,
+) {
+    let style = if app.pipeline_field == field {
+        Style::default().bg(Color::Blue)
+    } else {
+        Style::default()
+    };
+    let widget = Paragraph::new(value.to_string()).block(
+        Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .style(style),
+    );
+    f.render_widget(widget, area);
+}
+
+fn draw_pipeline(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Length(3), // filter name input
+                Constraint::Length(3), // params input
+                Constraint::Length(3), // input file
+                Constraint::Length(3), // output file
+                Constraint::Min(6),    // steps list
+                Constraint::Length(3), // controls help
+                Constraint::Length(2), // status bar
+            ]
+            .as_ref(),
+        )
+        .split(f.area());
+
+    // Each field is a bordered text box that highlights when focused; the four
+    // share everything but their value, title, and which field they represent.
+    render_pipeline_input(
+        f,
+        chunks[0],
+        &app.pipeline_filter_input,
+        " Filter to add (e.g. grayscale) ",
+        PipelineField::FilterName,
+        app,
+    );
+    render_pipeline_input(
+        f,
+        chunks[1],
+        &app.pipeline_params_input,
+        " Params (e.g. 2.0 or 10,10,100,100) ",
+        PipelineField::Params,
+        app,
+    );
+    render_pipeline_input(
+        f,
+        chunks[2],
+        &app.pipeline_input_file,
+        " Input Image ",
+        PipelineField::Input,
+        app,
+    );
+    render_pipeline_input(
+        f,
+        chunks[3],
+        &app.pipeline_output_file,
+        " Output Image ",
+        PipelineField::Output,
+        app,
+    );
+
+    // Steps list, numbered in application order. When the list overflows the
+    // available height, show the tail so the most recently added step (the one
+    // the user just confirmed) stays visible.
+    let steps: Vec<ListItem> = if app.pipeline_steps.is_empty() {
+        vec![ListItem::new("  (no steps yet — type a filter above and press Enter)")
+            .style(Style::default().fg(Color::DarkGray))]
+    } else {
+        // Subtract 2 rows for the block's top/bottom borders.
+        let visible = (chunks[4].height.saturating_sub(2) as usize).max(1);
+        let skip = app.pipeline_steps.len().saturating_sub(visible);
+        app.pipeline_steps
+            .iter()
+            .enumerate()
+            .skip(skip)
+            .map(|(idx, step)| {
+                let params = if step.params.is_empty() {
+                    String::new()
+                } else {
+                    format!("  [{}]", step.params)
+                };
+                let content = format!("  {}. {}{}", idx + 1, step.filter, params);
+                ListItem::new(content).style(Style::default().fg(Color::White))
+            })
+            .collect()
+    };
+    let steps_list = List::new(steps).block(
+        Block::default()
+            .title(format!(
+                " 🐱 Pipeline ({} step(s), applied top→bottom) ",
+                app.pipeline_steps.len()
+            ))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+    f.render_widget(steps_list, chunks[4]);
+
+    // Controls help.
+    let controls = vec![
+        Line::from(vec![
+            Span::styled("Tab", Style::default().fg(Color::Yellow)),
+            Span::raw(" switch field • "),
+            Span::styled("Enter", Style::default().fg(Color::Yellow)),
+            Span::raw(" add step • "),
+            Span::styled("Ctrl+R", Style::default().fg(Color::Green)),
+            Span::raw(" run"),
+        ]),
+        Line::from(vec![
+            Span::styled("Ctrl+D", Style::default().fg(Color::Yellow)),
+            Span::raw(" remove last • "),
+            Span::styled("Ctrl+X", Style::default().fg(Color::Yellow)),
+            Span::raw(" clear • "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]),
+    ];
+    let controls_widget = Paragraph::new(controls).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green)),
+    );
+    f.render_widget(controls_widget, chunks[5]);
+
+    // Status bar.
+    let status = Paragraph::new(app.status_message.clone())
+        .style(Style::default().fg(Color::White).bg(Color::DarkGray))
+        .alignment(Alignment::Center);
+    f.render_widget(status, chunks[6]);
+}
+
 fn draw_info(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -309,6 +462,15 @@ fn draw_help(f: &mut Frame, app: &App) {
         Line::from("  Mirror       - Flip image horizontally, vertically, or both"),
         Line::from("  Resize       - Change image dimensions (width, height)"),
         Line::from("  Rotate       - Rotate image by specified angle"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("PIPELINE 🐾", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from("  Press 'p' to chain multiple filters in one run."),
+        Line::from("  Type a filter + params, Enter to add it as a step, and"),
+        Line::from("  repeat. Steps run top→bottom, feeding each output into"),
+        Line::from("  the next. Ctrl+R runs, Ctrl+D removes the last step,"),
+        Line::from("  Ctrl+X clears. A bad step reports which step number failed."),
         Line::from(""),
         Line::from(vec![
             Span::styled("TIPS FROM SILVESTRE 🐱", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
