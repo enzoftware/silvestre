@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use image::ImageReader;
 use silvestre_core::{SilvestreImage, ColorSpace};
-use crate::filters::{apply_named_filter, is_known_filter, silvestre_to_dynamic, validate_filter};
+use crate::filters::{apply_named_filter, silvestre_to_dynamic, validate_filter, KNOWN_FILTERS};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Screen {
@@ -24,13 +24,26 @@ pub struct PipelineStep {
     pub params: String,
 }
 
-/// Which input box on the pipeline "add step" row currently has focus.
+/// One row in the pipeline's checkbox list: a known filter, whether it is
+/// enabled (checked), and the params typed for it. Rows are kept in a fixed
+/// order and enabled ones run top→bottom.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PipelineFilter {
+    pub name: String,
+    /// Human-readable hint for the params this filter expects.
+    pub hint: String,
+    /// Whether this filter is checked and will run.
+    pub enabled: bool,
+    /// The raw params string for this filter (only used when enabled).
+    pub params: String,
+}
+
+/// Which area of the pipeline screen currently has focus.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PipelineField {
-    /// The name of the filter to add as the next step.
-    FilterName,
-    /// The parameters for the filter being added.
-    Params,
+    /// The checkbox list of filters (navigate with ↑↓, Space toggles, typing
+    /// edits the highlighted enabled filter's params).
+    Filters,
     /// The shared input image path.
     Input,
     /// The shared output image path.
@@ -55,10 +68,11 @@ pub struct App {
     pub status_message: String,
     pub processing: bool,
     // Pipeline screen state.
-    pub pipeline_steps: Vec<PipelineStep>,
+    /// The checkbox list of filters, in fixed run order.
+    pub pipeline_filters: Vec<PipelineFilter>,
+    /// Which filter row is highlighted in the list.
+    pub pipeline_selected: usize,
     pub pipeline_field: PipelineField,
-    pub pipeline_filter_input: String,
-    pub pipeline_params_input: String,
     pub pipeline_input_file: String,
     pub pipeline_output_file: String,
 }
@@ -108,6 +122,18 @@ impl App {
             },
         ];
 
+        // The pipeline checkbox list mirrors the canonical filter list, in the
+        // same fixed order that enabled filters will run in.
+        let pipeline_filters = KNOWN_FILTERS
+            .iter()
+            .map(|(name, hint)| PipelineFilter {
+                name: name.to_string(),
+                hint: hint.to_string(),
+                enabled: false,
+                params: String::new(),
+            })
+            .collect();
+
         Self {
             current_screen: Screen::Main,
             filters,
@@ -119,10 +145,9 @@ impl App {
             info_input: String::new(),
             status_message: "🐱 Welcome to Silvestre (named after my magnificent cat!)".to_string(),
             processing: false,
-            pipeline_steps: Vec::new(),
-            pipeline_field: PipelineField::FilterName,
-            pipeline_filter_input: String::new(),
-            pipeline_params_input: String::new(),
+            pipeline_filters,
+            pipeline_selected: 0,
+            pipeline_field: PipelineField::Filters,
             pipeline_input_file: String::new(),
             pipeline_output_file: String::new(),
         }
@@ -323,37 +348,74 @@ impl App {
 
     pub fn go_to_pipeline(&mut self) {
         self.current_screen = Screen::Pipeline;
-        self.pipeline_field = PipelineField::FilterName;
-        self.pipeline_filter_input.clear();
-        self.pipeline_params_input.clear();
+        self.pipeline_field = PipelineField::Filters;
+        self.pipeline_selected = 0;
         self.status_message =
-            "Build a pipeline: type a filter, Enter to add. 'r' runs it. 🐾".to_string();
+            "Check filters with Space, type params, Ctrl+R to run. 🐾".to_string();
     }
 
-    /// Move focus to the next input box on the pipeline screen.
+    /// Move focus to the next area on the pipeline screen (list → input → output).
     pub fn pipeline_next_field(&mut self) {
         self.pipeline_field = match self.pipeline_field {
-            PipelineField::FilterName => PipelineField::Params,
-            PipelineField::Params => PipelineField::Input,
+            PipelineField::Filters => PipelineField::Input,
             PipelineField::Input => PipelineField::Output,
-            PipelineField::Output => PipelineField::FilterName,
+            PipelineField::Output => PipelineField::Filters,
         };
     }
 
-    /// Move focus to the previous input box on the pipeline screen.
+    /// Move focus to the previous area on the pipeline screen.
     pub fn pipeline_prev_field(&mut self) {
         self.pipeline_field = match self.pipeline_field {
-            PipelineField::FilterName => PipelineField::Output,
-            PipelineField::Params => PipelineField::FilterName,
-            PipelineField::Input => PipelineField::Params,
+            PipelineField::Filters => PipelineField::Output,
+            PipelineField::Input => PipelineField::Filters,
             PipelineField::Output => PipelineField::Input,
         };
     }
 
+    /// Highlight the previous filter row in the checkbox list (wraps around).
+    pub fn pipeline_select_previous(&mut self) {
+        if self.pipeline_filters.is_empty() {
+            return;
+        }
+        if self.pipeline_selected > 0 {
+            self.pipeline_selected -= 1;
+        } else {
+            self.pipeline_selected = self.pipeline_filters.len() - 1;
+        }
+    }
+
+    /// Highlight the next filter row in the checkbox list (wraps around).
+    pub fn pipeline_select_next(&mut self) {
+        if self.pipeline_filters.is_empty() {
+            return;
+        }
+        self.pipeline_selected = (self.pipeline_selected + 1) % self.pipeline_filters.len();
+    }
+
+    /// Toggle the highlighted filter on or off (check / uncheck the box).
+    pub fn pipeline_toggle_selected(&mut self) {
+        if let Some(filter) = self.pipeline_filters.get_mut(self.pipeline_selected) {
+            filter.enabled = !filter.enabled;
+            self.status_message = if filter.enabled {
+                format!("Enabled {} 🐾", filter.name)
+            } else {
+                format!("Disabled {} 🐱", filter.name)
+            };
+        }
+    }
+
+    /// Type a character. On the filter list it edits the highlighted filter's
+    /// params (only meaningful when that filter is enabled); on the file rows it
+    /// edits the path.
     pub fn pipeline_input_char(&mut self, c: char) {
         match self.pipeline_field {
-            PipelineField::FilterName => self.pipeline_filter_input.push(c),
-            PipelineField::Params => self.pipeline_params_input.push(c),
+            PipelineField::Filters => {
+                if let Some(filter) = self.pipeline_filters.get_mut(self.pipeline_selected) {
+                    if filter.enabled {
+                        filter.params.push(c);
+                    }
+                }
+            }
             PipelineField::Input => self.pipeline_input_file.push(c),
             PipelineField::Output => self.pipeline_output_file.push(c),
         }
@@ -361,11 +423,12 @@ impl App {
 
     pub fn pipeline_input_backspace(&mut self) {
         match self.pipeline_field {
-            PipelineField::FilterName => {
-                self.pipeline_filter_input.pop();
-            }
-            PipelineField::Params => {
-                self.pipeline_params_input.pop();
+            PipelineField::Filters => {
+                if let Some(filter) = self.pipeline_filters.get_mut(self.pipeline_selected) {
+                    if filter.enabled {
+                        filter.params.pop();
+                    }
+                }
             }
             PipelineField::Input => {
                 self.pipeline_input_file.pop();
@@ -376,55 +439,34 @@ impl App {
         }
     }
 
-    /// Add the filter currently typed in the "filter name" box as the next
-    /// pipeline step, validating its name and parameters first.
-    pub fn pipeline_add_step(&mut self) {
-        let filter = self.pipeline_filter_input.trim().to_lowercase();
-        let params = self.pipeline_params_input.trim().to_string();
-
-        if filter.is_empty() {
-            self.status_message = "Type a filter name before adding a step 🐱".to_string();
-            return;
-        }
-        if !is_known_filter(&filter) {
-            self.status_message =
-                format!("Unknown filter: {}. Press 'h' for the list 🐾", filter);
-            return;
-        }
-        if let Err(e) = validate_filter(&filter, &params) {
-            self.status_message = format!("Invalid params for {}: {} 🐱", filter, e);
-            return;
-        }
-
-        self.pipeline_steps.push(PipelineStep { filter, params });
-        self.pipeline_filter_input.clear();
-        self.pipeline_params_input.clear();
-        self.pipeline_field = PipelineField::FilterName;
-        self.status_message = format!(
-            "Added step {}. Add more, or press 'r' to run. 🐾",
-            self.pipeline_steps.len()
-        );
-    }
-
-    /// Remove the most recently added pipeline step.
-    pub fn pipeline_remove_last(&mut self) {
-        if let Some(removed) = self.pipeline_steps.pop() {
-            self.status_message = format!("Removed step: {} 🐾", removed.filter);
-        } else {
-            self.status_message = "No steps to remove 🐱".to_string();
-        }
-    }
-
-    /// Clear every step from the pipeline.
+    /// Uncheck every filter and clear their params.
     pub fn pipeline_clear(&mut self) {
-        self.pipeline_steps.clear();
+        for filter in &mut self.pipeline_filters {
+            filter.enabled = false;
+            filter.params.clear();
+        }
         self.status_message = "Pipeline cleared 🐾".to_string();
     }
 
-    /// Validate and run the whole pipeline, applying each step in order.
+    /// Build the ordered list of enabled filters as pipeline steps.
+    pub fn enabled_steps(&self) -> Vec<PipelineStep> {
+        self.pipeline_filters
+            .iter()
+            .filter(|f| f.enabled)
+            .map(|f| PipelineStep {
+                filter: f.name.clone(),
+                params: f.params.trim().to_string(),
+            })
+            .collect()
+    }
+
+    /// Validate and run the whole pipeline, applying each enabled filter in
+    /// list order.
     pub fn pipeline_run_action(&mut self) {
-        if self.pipeline_steps.is_empty() {
-            self.status_message = "Add at least one filter before running 🐱".to_string();
+        let steps = self.enabled_steps();
+
+        if steps.is_empty() {
+            self.status_message = "Check at least one filter before running 🐱".to_string();
             return;
         }
         if self.pipeline_input_file.trim().is_empty()
@@ -440,7 +482,6 @@ impl App {
 
         let input_path = self.pipeline_input_file.trim().to_string();
         let output_path = self.pipeline_output_file.trim().to_string();
-        let steps = self.pipeline_steps.clone();
 
         let result = run_pipeline(&input_path, &output_path, &steps);
 
@@ -641,78 +682,108 @@ mod tests {
         assert!(err.contains("not found"));
     }
 
+    /// Index of a filter row in a fresh pipeline list, by name.
+    fn filter_idx(app: &App, name: &str) -> usize {
+        app.pipeline_filters
+            .iter()
+            .position(|f| f.name == name)
+            .unwrap()
+    }
+
     #[test]
-    fn add_step_appends_valid_filter() {
+    fn pipeline_list_mirrors_known_filters() {
+        let app = App::new();
+        assert_eq!(app.pipeline_filters.len(), crate::filters::KNOWN_FILTERS.len());
+        // All start unchecked with empty params.
+        assert!(app.pipeline_filters.iter().all(|f| !f.enabled));
+        assert!(app.pipeline_filters.iter().all(|f| f.params.is_empty()));
+    }
+
+    #[test]
+    fn toggle_checks_and_unchecks_selected() {
         let mut app = App::new();
         app.go_to_pipeline();
-        app.pipeline_filter_input = "grayscale".to_string();
-        app.pipeline_add_step();
+        assert!(!app.pipeline_filters[0].enabled);
 
-        assert_eq!(app.pipeline_steps.len(), 1);
-        assert_eq!(app.pipeline_steps[0].filter, "grayscale");
-        // Inputs are cleared after a successful add.
-        assert!(app.pipeline_filter_input.is_empty());
+        app.pipeline_toggle_selected();
+        assert!(app.pipeline_filters[0].enabled);
+        assert!(app.status_message.contains("Enabled"));
+
+        app.pipeline_toggle_selected();
+        assert!(!app.pipeline_filters[0].enabled);
+        assert!(app.status_message.contains("Disabled"));
     }
 
     #[test]
-    fn add_step_lowercases_and_trims_filter() {
+    fn enabled_steps_keep_list_order_and_params() {
         let mut app = App::new();
-        app.pipeline_filter_input = "  GrayScale  ".to_string();
-        app.pipeline_add_step();
-        assert_eq!(app.pipeline_steps[0].filter, "grayscale");
+        // Enable grayscale and brightness (with params), leave others off.
+        let g = filter_idx(&app, "grayscale");
+        let b = filter_idx(&app, "brightness");
+        app.pipeline_filters[g].enabled = true;
+        app.pipeline_filters[b].enabled = true;
+        app.pipeline_filters[b].params = "  30  ".to_string();
+
+        let steps = app.enabled_steps();
+        assert_eq!(steps.len(), 2);
+        // brightness comes before grayscale in KNOWN_FILTERS order.
+        assert_eq!(steps[0].filter, "brightness");
+        assert_eq!(steps[0].params, "30"); // trimmed
+        assert_eq!(steps[1].filter, "grayscale");
     }
 
     #[test]
-    fn add_step_rejects_unknown_filter() {
+    fn params_only_edit_when_selected_filter_enabled() {
         let mut app = App::new();
-        app.pipeline_filter_input = "bogus".to_string();
-        app.pipeline_add_step();
-        assert!(app.pipeline_steps.is_empty());
-        assert!(app.status_message.contains("Unknown filter"));
+        app.go_to_pipeline();
+        app.pipeline_field = PipelineField::Filters;
+
+        // Highlighted filter is disabled: typing is ignored.
+        app.pipeline_input_char('9');
+        assert!(app.pipeline_filters[app.pipeline_selected].params.is_empty());
+
+        // Enable it, then typing edits its params.
+        app.pipeline_toggle_selected();
+        app.pipeline_input_char('4');
+        app.pipeline_input_char('2');
+        assert_eq!(app.pipeline_filters[app.pipeline_selected].params, "42");
+        app.pipeline_input_backspace();
+        assert_eq!(app.pipeline_filters[app.pipeline_selected].params, "4");
     }
 
     #[test]
-    fn add_step_rejects_invalid_params() {
+    fn selection_navigation_wraps() {
         let mut app = App::new();
-        app.pipeline_filter_input = "brightness".to_string();
-        app.pipeline_params_input = "abc".to_string();
-        app.pipeline_add_step();
-        assert!(app.pipeline_steps.is_empty());
-        assert!(app.status_message.contains("Invalid params"));
+        assert_eq!(app.pipeline_selected, 0);
+        app.pipeline_select_previous();
+        assert_eq!(app.pipeline_selected, app.pipeline_filters.len() - 1);
+        app.pipeline_select_next();
+        assert_eq!(app.pipeline_selected, 0);
     }
 
     #[test]
-    fn add_step_rejects_empty_filter() {
+    fn clear_unchecks_all_and_resets_params() {
         let mut app = App::new();
-        app.pipeline_filter_input = "   ".to_string();
-        app.pipeline_add_step();
-        assert!(app.pipeline_steps.is_empty());
-    }
-
-    #[test]
-    fn remove_last_and_clear_work() {
-        let mut app = App::new();
-        app.pipeline_steps = vec![step("grayscale", ""), step("invert", "")];
-
-        app.pipeline_remove_last();
-        assert_eq!(app.pipeline_steps.len(), 1);
+        app.pipeline_filters[0].enabled = true;
+        app.pipeline_filters[0].params = "1.5".to_string();
 
         app.pipeline_clear();
-        assert!(app.pipeline_steps.is_empty());
-
-        // Removing from an empty pipeline is a no-op with a message.
-        app.pipeline_remove_last();
-        assert!(app.status_message.contains("No steps"));
+        assert!(app.pipeline_filters.iter().all(|f| !f.enabled));
+        assert!(app.pipeline_filters.iter().all(|f| f.params.is_empty()));
     }
 
     #[test]
     fn field_navigation_cycles() {
         let mut app = App::new();
-        assert_eq!(app.pipeline_field, PipelineField::FilterName);
+        assert_eq!(app.pipeline_field, PipelineField::Filters);
         app.pipeline_next_field();
-        assert_eq!(app.pipeline_field, PipelineField::Params);
+        assert_eq!(app.pipeline_field, PipelineField::Input);
+        app.pipeline_next_field();
+        assert_eq!(app.pipeline_field, PipelineField::Output);
         app.pipeline_prev_field();
-        assert_eq!(app.pipeline_field, PipelineField::FilterName);
+        assert_eq!(app.pipeline_field, PipelineField::Input);
+        app.pipeline_prev_field();
+        assert_eq!(app.pipeline_field, PipelineField::Filters);
         app.pipeline_prev_field();
         assert_eq!(app.pipeline_field, PipelineField::Output);
     }
@@ -720,12 +791,12 @@ mod tests {
     #[test]
     fn run_action_requires_steps_and_files() {
         let mut app = App::new();
-        // No steps yet.
+        // Nothing checked yet.
         app.pipeline_run_action();
         assert!(app.status_message.contains("at least one filter"));
 
-        // Steps present but no files.
-        app.pipeline_steps = vec![step("grayscale", "")];
+        // A filter checked but no files.
+        app.pipeline_filters[0].enabled = true;
         app.pipeline_run_action();
         assert!(app.status_message.contains("input and output"));
     }

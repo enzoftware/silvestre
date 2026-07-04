@@ -25,11 +25,6 @@ pub const KNOWN_FILTERS: &[(&str, &str)] = &[
     ("rotate", "angle in degrees"),
 ];
 
-/// Returns `true` if `name` is a filter the CLI can apply.
-pub fn is_known_filter(name: &str) -> bool {
-    KNOWN_FILTERS.iter().any(|(n, _)| *n == name)
-}
-
 /// Validate that `filter_name` is known and that `params` parses correctly,
 /// without touching any image data.
 ///
@@ -227,14 +222,6 @@ mod tests {
     fn test_image(w: u32, h: u32) -> SilvestreImage {
         let pixels = vec![128u8; (w * h * 4) as usize];
         SilvestreImage::new(pixels, w, h, ColorSpace::Rgba).unwrap()
-    }
-
-    #[test]
-    fn known_filters_are_recognized() {
-        assert!(is_known_filter("grayscale"));
-        assert!(is_known_filter("resize"));
-        assert!(!is_known_filter("nope"));
-        assert!(!is_known_filter(""));
     }
 
     #[test]

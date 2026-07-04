@@ -84,18 +84,25 @@ fn run_app<B: Backend>(
                     }
                     app::Screen::Pipeline => {
                         // Ctrl-based chords drive actions so plain letters can
-                        // still be typed into the focused input field.
+                        // still be typed into the focused params field.
                         let ctrl = key
                             .modifiers
                             .contains(crossterm::event::KeyModifiers::CONTROL);
+                        let on_filters =
+                            app.pipeline_field == app::PipelineField::Filters;
                         match key.code {
                             KeyCode::Esc => app.go_to_main(),
                             KeyCode::Tab => app.pipeline_next_field(),
                             KeyCode::BackTab => app.pipeline_prev_field(),
-                            KeyCode::Enter => app.pipeline_add_step(),
                             KeyCode::Char('r') if ctrl => app.pipeline_run_action(),
-                            KeyCode::Char('d') if ctrl => app.pipeline_remove_last(),
                             KeyCode::Char('x') if ctrl => app.pipeline_clear(),
+                            // On the filter list, ↑↓ move the highlight, Space or
+                            // Enter toggles the checkbox, and typing edits params.
+                            KeyCode::Up if on_filters => app.pipeline_select_previous(),
+                            KeyCode::Down if on_filters => app.pipeline_select_next(),
+                            KeyCode::Char(' ') if on_filters => app.pipeline_toggle_selected(),
+                            KeyCode::Enter if on_filters => app.pipeline_toggle_selected(),
+                            KeyCode::Enter => app.pipeline_run_action(),
                             KeyCode::Char(c) => app.pipeline_input_char(c),
                             KeyCode::Backspace => app.pipeline_input_backspace(),
                             _ => {}
