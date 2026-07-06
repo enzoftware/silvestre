@@ -31,3 +31,6 @@ example/macos/Flutter/GeneratedPluginRegistrant.swift
 # macOS / IDE noise
 .DS_Store
 *.iml
+
+# Gradle local build cache (Android host project, incl. example app).
+.gradle/
