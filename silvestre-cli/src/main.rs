@@ -102,7 +102,9 @@ fn run_app<B: Backend>(
                             KeyCode::Down if on_filters => app.pipeline_select_next(),
                             KeyCode::Char(' ') if on_filters => app.pipeline_toggle_selected(),
                             KeyCode::Enter if on_filters => app.pipeline_toggle_selected(),
-                            KeyCode::Enter => app.pipeline_run_action(),
+                            // On Input/Output, Enter is just a no-op (those
+                            // fields don't submit); running the pipeline is
+                            // Ctrl+R only, so typing/editing never triggers it.
                             KeyCode::Char(c) => app.pipeline_input_char(c),
                             KeyCode::Backspace => app.pipeline_input_backspace(),
                             _ => {}

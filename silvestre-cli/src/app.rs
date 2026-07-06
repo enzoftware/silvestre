@@ -490,6 +490,10 @@ impl App {
             Ok(msg) => msg,
             Err(e) => format!("Error: {} 🐱", e),
         };
+        // Leave the Processing screen now so the result message above is
+        // actually shown, instead of run_app's is_processing_done() check
+        // immediately firing go_to_main() and overwriting it.
+        self.current_screen = Screen::Pipeline;
     }
 }
 
@@ -583,7 +587,12 @@ mod tests {
     fn run_pipeline_applies_steps_in_order() {
         let input = write_test_png("order_in", 40, 40);
         let output = out_path("order");
-        let steps = vec![step("grayscale", ""), step("resize", "20,10")];
+        // Crop then resize is not commutative: cropping a 20x20 region out of
+        // the 40x40 source then resizing it down only works in this order. If
+        // the steps ran in reverse, the image would already be 5x5 by the
+        // time crop's 10,10,20,20 region is applied, which is out of bounds
+        // and fails.
+        let steps = vec![step("crop", "10,10,20,20"), step("resize", "5,5")];
 
         let msg = run_pipeline(
             input.to_str().unwrap(),
@@ -594,10 +603,9 @@ mod tests {
 
         assert!(msg.contains("2 step(s)"));
 
-        // Resize was the last step, so the output must be 20x10.
         let saved = image::open(&output).unwrap();
-        assert_eq!(saved.width(), 20);
-        assert_eq!(saved.height(), 10);
+        assert_eq!(saved.width(), 5);
+        assert_eq!(saved.height(), 5);
 
         let _ = std::fs::remove_file(&input);
         let _ = std::fs::remove_file(&output);
@@ -650,23 +658,18 @@ mod tests {
 
     #[test]
     fn run_pipeline_validates_before_processing() {
-        let input = write_test_png("validate_in", 20, 20);
         let output = out_path("validate");
-        // Invalid params in step 2 should fail during up-front validation,
-        // before the image is even loaded.
+        // The input path doesn't exist. If validation truly runs before any
+        // decode attempt, we get the Step 2 validation error, not a "not
+        // found" error from trying to open the (missing) file.
         let steps = vec![step("grayscale", ""), step("brightness", "notanumber")];
 
-        let err = run_pipeline(
-            input.to_str().unwrap(),
-            output.to_str().unwrap(),
-            &steps,
-        )
-        .unwrap_err();
+        let err = run_pipeline("/no/such/validate_input.png", output.to_str().unwrap(), &steps)
+            .unwrap_err();
 
         assert!(err.contains("Step 2"), "error was: {}", err);
+        assert!(!err.contains("not found"), "error was: {}", err);
         assert!(!output.exists());
-
-        let _ = std::fs::remove_file(&input);
     }
 
     #[test]
