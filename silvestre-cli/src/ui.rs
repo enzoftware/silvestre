@@ -1,6 +1,6 @@
 //! UI rendering with ratatui
 
-use crate::app::{App, Screen};
+use crate::app::{App, PipelineField, Screen};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -14,6 +14,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         Screen::Main => draw_main(f, app),
         Screen::FilterMenu => draw_filter_menu(f, app),
         Screen::ApplyFilter => draw_apply_filter(f, app),
+        Screen::Pipeline => draw_pipeline(f, app),
         Screen::Info => draw_info(f, app),
         Screen::Help => draw_help(f, app),
         Screen::Processing => draw_processing(f, app),
@@ -58,6 +59,12 @@ fn draw_main(f: &mut Frame, app: &App) {
             Span::styled("f", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             Span::raw(" to apply a "),
             Span::styled("filter", Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::raw("Press "),
+            Span::styled("p", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::raw(" to build a filter "),
+            Span::styled("pipeline", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
@@ -243,6 +250,177 @@ fn draw_apply_filter(f: &mut Frame, app: &App) {
     f.render_widget(status, chunks[5]);
 }
 
+/// Render a single bordered text-input box for the pipeline screen,
+/// highlighting it when `field` is the currently focused field.
+fn render_pipeline_input(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    value: &str,
+    title: &str,
+    field: PipelineField,
+    app: &App,
+) {
+    let style = if app.pipeline_field == field {
+        Style::default().bg(Color::Blue)
+    } else {
+        Style::default()
+    };
+    let widget = Paragraph::new(value.to_string()).block(
+        Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .style(style),
+    );
+    f.render_widget(widget, area);
+}
+
+fn draw_pipeline(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Min(10),   // filter checkbox list
+                Constraint::Length(3), // input file
+                Constraint::Length(3), // output file
+                Constraint::Length(3), // controls help
+                Constraint::Length(2), // status bar
+            ]
+            .as_ref(),
+        )
+        .split(f.area());
+
+    // Checkbox list of filters. Each row shows a [x]/[ ] box, the filter name,
+    // and its params box (editable when checked, dimmed when unchecked). The
+    // highlighted row is emphasized only while the list has focus.
+    let list_focused = app.pipeline_field == PipelineField::Filters;
+    let enabled_count = app.pipeline_filters.iter().filter(|fi| fi.enabled).count();
+
+    let rows: Vec<ListItem> = app
+        .pipeline_filters
+        .iter()
+        .enumerate()
+        .map(|(idx, fi)| {
+            let check = if fi.enabled { "[x]" } else { "[ ]" };
+            let is_selected = idx == app.pipeline_selected;
+
+            // The params portion: what the user typed if any, otherwise the hint
+            // (dimmed) so they know what's expected.
+            let params_span = if fi.enabled {
+                if fi.params.is_empty() {
+                    Span::styled(
+                        format!("  {}", fi.hint),
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    )
+                } else {
+                    Span::styled(
+                        format!("  {}", fi.params),
+                        Style::default().fg(Color::Green),
+                    )
+                }
+            } else {
+                Span::styled(
+                    format!("  ({})", fi.hint),
+                    Style::default().fg(Color::DarkGray),
+                )
+            };
+
+            let name_style = if fi.enabled {
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            };
+            let check_style = if fi.enabled {
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+
+            let line = Line::from(vec![
+                Span::raw("  "),
+                Span::styled(check.to_string(), check_style),
+                Span::raw(" "),
+                Span::styled(format!("{:<11}", fi.name), name_style),
+                params_span,
+            ]);
+
+            let item = ListItem::new(line);
+            // Highlight the cursor row only when the list is the focused area,
+            // so it's clear whether keystrokes go to the list or the file boxes.
+            if is_selected && list_focused {
+                item.style(Style::default().bg(Color::Blue))
+            } else {
+                item
+            }
+        })
+        .collect();
+
+    let list_border = if list_focused {
+        Color::Yellow
+    } else {
+        Color::Cyan
+    };
+    let filters_list = List::new(rows).block(
+        Block::default()
+            .title(format!(
+                " 🐱 Filters ({} enabled, run top→bottom) — ↑↓ move, Space toggles ",
+                enabled_count
+            ))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(list_border)),
+    );
+    f.render_widget(filters_list, chunks[0]);
+
+    render_pipeline_input(
+        f,
+        chunks[1],
+        &app.pipeline_input_file,
+        " Input Image ",
+        PipelineField::Input,
+        app,
+    );
+    render_pipeline_input(
+        f,
+        chunks[2],
+        &app.pipeline_output_file,
+        " Output Image ",
+        PipelineField::Output,
+        app,
+    );
+
+    // Controls help.
+    let controls = vec![
+        Line::from(vec![
+            Span::styled("↑↓", Style::default().fg(Color::Yellow)),
+            Span::raw(" move • "),
+            Span::styled("Space", Style::default().fg(Color::Yellow)),
+            Span::raw(" toggle • type params • "),
+            Span::styled("Tab", Style::default().fg(Color::Yellow)),
+            Span::raw(" switch field"),
+        ]),
+        Line::from(vec![
+            Span::styled("Ctrl+R", Style::default().fg(Color::Green)),
+            Span::raw(" run • "),
+            Span::styled("Ctrl+X", Style::default().fg(Color::Yellow)),
+            Span::raw(" clear • "),
+            Span::styled("Esc", Style::default().fg(Color::Yellow)),
+            Span::raw(" back"),
+        ]),
+    ];
+    let controls_widget = Paragraph::new(controls).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green)),
+    );
+    f.render_widget(controls_widget, chunks[3]);
+
+    // Status bar.
+    let status = Paragraph::new(app.status_message.clone())
+        .style(Style::default().fg(Color::White).bg(Color::DarkGray))
+        .alignment(Alignment::Center);
+    f.render_widget(status, chunks[4]);
+}
+
 fn draw_info(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -309,6 +487,15 @@ fn draw_help(f: &mut Frame, app: &App) {
         Line::from("  Mirror       - Flip image horizontally, vertically, or both"),
         Line::from("  Resize       - Change image dimensions (width, height)"),
         Line::from("  Rotate       - Rotate image by specified angle"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("PIPELINE 🐾", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from("  Press 'p' to chain multiple filters in one run."),
+        Line::from("  Check the filters you want with Space and type any params"),
+        Line::from("  next to them. Enabled filters run top→bottom, feeding each"),
+        Line::from("  output into the next. Ctrl+R runs, Ctrl+X clears all."),
+        Line::from("  A bad step reports which step number failed."),
         Line::from(""),
         Line::from(vec![
             Span::styled("TIPS FROM SILVESTRE 🐱", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
