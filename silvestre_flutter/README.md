@@ -215,11 +215,24 @@ final lumHist = await image.computeLuminanceHistogram();
 ## Example app
 
 The [`example/`](example) app is a complete image editor that mirrors the
-[web (WASM) demo](../silvestre-wasm): pick an image, stack filters, view a live
-histogram, reset, and export the result via the native share sheet. It uses
-[`flutter_bloc`](https://pub.dev/packages/flutter_bloc) for state management:
+[web (WASM) demo](../silvestre-wasm) and demonstrates the full mobile workflow:
 
-- `EditorBloc` — owns the image lifecycle (load, apply filter, reset, export)
+- **Pick or capture** — load an image from the gallery or take a photo with the
+  camera ([`image_picker`](https://pub.dev/packages/image_picker)).
+- **Stack filters** — apply any silvestre filter on top of the running result,
+  with sliders for parameters (sigma, threshold, delta, …).
+- **Compare** — view original and result side by side, or drag a before/after
+  slider over a single image.
+- **Analyze** — view a live per-channel histogram on demand.
+- **Save & share** — save the processed image straight to the photo gallery
+  ([`gal`](https://pub.dev/packages/gal)) or export it via the native share
+  sheet ([`share_plus`](https://pub.dev/packages/share_plus)).
+
+It uses [`flutter_bloc`](https://pub.dev/packages/flutter_bloc) for state
+management:
+
+- `EditorBloc` — owns the image lifecycle (load, apply filter, reset, export,
+  save)
 - `HistogramBloc` — computes histograms on demand
 
 Run it from the `example/` directory:

@@ -47,3 +47,8 @@ final class EditorCleared extends EditorEvent {
 final class EditorExported extends EditorEvent {
   const EditorExported();
 }
+
+/// The current result should be saved to the device's photo gallery.
+final class EditorSaved extends EditorEvent {
+  const EditorSaved();
+}

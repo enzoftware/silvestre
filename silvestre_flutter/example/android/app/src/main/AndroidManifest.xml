@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Saving processed images to the gallery (gal). Only needed to write to
+         shared storage on Android 10 (API 29) and below; newer versions use
+         the scoped MediaStore API without this runtime permission. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
     <application
         android:label="silvestre_flutter_example"
         android:name="${applicationName}"

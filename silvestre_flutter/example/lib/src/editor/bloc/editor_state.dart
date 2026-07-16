@@ -11,6 +11,9 @@ enum EditorStatus {
   /// A filter or export operation is in flight.
   processing,
 
+  /// The current result was just saved to the photo gallery.
+  saved,
+
   /// The last operation failed; [EditorState.error] holds the message.
   failure,
 }
