@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,7 +15,8 @@ import 'package:silvestre_flutter_example/src/histogram/histogram.dart';
 /// Entry point for the editor feature.
 ///
 /// Provides the [EditorBloc] and [HistogramBloc] to the subtree and wires up
-/// the platform image sharer. The actual UI lives in [EditorView].
+/// the platform image sharer and gallery saver. The actual UI lives in
+/// [EditorView].
 class EditorPage extends StatelessWidget {
   const EditorPage({super.key});
 
@@ -22,7 +24,9 @@ class EditorPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => EditorBloc(share: _sharePng)),
+        BlocProvider(
+          create: (_) => EditorBloc(share: _sharePng, save: _savePng),
+        ),
         BlocProvider(create: (_) => HistogramBloc()),
       ],
       child: const EditorView(),
@@ -40,6 +44,14 @@ class EditorPage extends StatelessWidget {
       XFile(file.path, mimeType: 'image/png', name: 'silvestre-output.png'),
     ]);
   }
+
+  /// Saves [bytes] as a PNG to the device's photo gallery.
+  static Future<void> _savePng(Uint8List bytes) async {
+    await Gal.putImageBytes(
+      bytes,
+      name: 'silvestre-${DateTime.now().millisecondsSinceEpoch}',
+    );
+  }
 }
 
 /// The editor UI: picks an image, applies filters, shows a histogram, and
@@ -47,12 +59,56 @@ class EditorPage extends StatelessWidget {
 class EditorView extends StatelessWidget {
   const EditorView({super.key});
 
-  Future<void> _pickImage(BuildContext context) async {
-    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (file == null || !context.mounted) return;
-    final bytes = await file.readAsBytes();
-    if (!context.mounted) return;
-    context.read<EditorBloc>().add(EditorImagePicked(bytes: bytes));
+  /// Picks an image from [source], reads its bytes, and hands them to the bloc.
+  ///
+  /// Denied permissions, unavailable hardware, and file-read errors surface as
+  /// a snackbar rather than escaping the callback unhandled.
+  Future<void> _pickImage(BuildContext context, ImageSource source) async {
+    try {
+      final file = await ImagePicker().pickImage(source: source);
+      if (file == null || !context.mounted) return;
+      final bytes = await file.readAsBytes();
+      if (!context.mounted) return;
+      context.read<EditorBloc>().add(EditorImagePicked(bytes: bytes));
+    } on Exception catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Could not load image: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
+
+  /// Prompts the user to choose between the gallery and the camera, then picks.
+  Future<void> _chooseSource(BuildContext context) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !context.mounted) return;
+    await _pickImage(context, source);
   }
 
   @override
@@ -60,14 +116,19 @@ class EditorView extends StatelessWidget {
     return BlocListener<EditorBloc, EditorState>(
       listenWhen:
           (previous, current) =>
-              current.status == EditorStatus.failure &&
-              previous.status != EditorStatus.failure,
+              previous.status != current.status &&
+              (current.status == EditorStatus.failure ||
+                  current.status == EditorStatus.saved),
       listener: (context, state) {
+        final message =
+            state.status == EditorStatus.saved
+                ? 'Saved to gallery'
+                : 'Error: ${state.error}';
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
-              content: Text('Error: ${state.error}'),
+              content: Text(message),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -105,6 +166,14 @@ class EditorView extends StatelessWidget {
                         },
                       ),
                     IconButton(
+                      icon: const Icon(Icons.save_alt),
+                      tooltip: 'Save to gallery',
+                      onPressed:
+                          () => context.read<EditorBloc>().add(
+                            const EditorSaved(),
+                          ),
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.ios_share),
                       tooltip: 'Export PNG',
                       onPressed:
@@ -121,9 +190,9 @@ class EditorView extends StatelessWidget {
         body: BlocBuilder<EditorBloc, EditorState>(
           builder: (context, state) {
             if (!state.hasImage) {
-              return _UploadPanel(onPick: () => _pickImage(context));
+              return _UploadPanel(onPick: () => _chooseSource(context));
             }
-            return _Editor(state: state, onPick: () => _pickImage(context));
+            return _Editor(state: state, onPick: () => _chooseSource(context));
           },
         ),
       ),
@@ -171,8 +240,8 @@ class _UploadPanel extends StatelessWidget {
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: onPick,
-                    icon: const Icon(Icons.folder_open),
-                    label: const Text('Browse files'),
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: const Text('Pick or take a photo'),
                   ),
                 ],
               ),
