@@ -186,16 +186,19 @@ impl Kernel {
         Self::square(values, size)
     }
 
+    /// Kernel width in taps.
     #[must_use]
     pub fn width(&self) -> usize {
         self.width
     }
 
+    /// Kernel height in taps.
     #[must_use]
     pub fn height(&self) -> usize {
         self.height
     }
 
+    /// The kernel weights in row-major order (`width * height` entries).
     #[must_use]
     pub fn values(&self) -> &[f32] {
         &self.values
@@ -259,11 +262,13 @@ impl SeparableKernel {
         })
     }
 
+    /// The horizontal (row) component of the separable kernel.
     #[must_use]
     pub fn horizontal(&self) -> &[f32] {
         &self.horizontal
     }
 
+    /// The vertical (column) component of the separable kernel.
     #[must_use]
     pub fn vertical(&self) -> &[f32] {
         &self.vertical

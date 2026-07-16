@@ -5,6 +5,7 @@
 //! to release images. Null pointer arguments return error codes instead of panicking.
 //!
 //! Error codes: 0 = success, -1 = error (call [`silvestre_last_error`] for details).
+#![warn(missing_docs)]
 
 use std::ffi::{c_char, CStr, CString};
 use std::path::Path;

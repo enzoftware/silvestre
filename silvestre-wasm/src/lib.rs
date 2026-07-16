@@ -1,3 +1,11 @@
+//! WebAssembly bindings for the silvestre image processing library.
+//!
+//! Exposes [`WasmImage`], a JavaScript-friendly wrapper around
+//! [`silvestre_core::SilvestreImage`], with methods to load, filter, and export
+//! images from the browser. Build with `wasm-pack` and import the generated
+//! package; see the crate's `demo/` app for a full example.
+#![warn(missing_docs)]
+
 use wasm_bindgen::prelude::*;
 use web_sys::ImageData;
 
@@ -10,6 +18,11 @@ use silvestre_core::filters::{
 use silvestre_core::transform::{CropFilter, MirrorFilter, MirrorMode, ResizeFilter, RotateFilter};
 use silvestre_core::{ColorSpace, Filter, ImageFormat, SilvestreImage};
 
+/// Initialize the WASM module.
+///
+/// Runs automatically on module load (via `wasm_bindgen(start)`) and installs a
+/// panic hook so Rust panics surface as readable messages in the browser
+/// console.
 #[wasm_bindgen(start)]
 pub fn init() {
     console_error_panic_hook::set_once();

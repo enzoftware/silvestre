@@ -9,8 +9,11 @@ use crate::{ColorSpace, Result, SilvestreError, SilvestreImage};
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
+    /// PNG — lossless compression.
     Png,
+    /// JPEG — lossy compression.
     Jpeg,
+    /// BMP — uncompressed bitmap.
     Bmp,
 }
 

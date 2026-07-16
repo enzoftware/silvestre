@@ -1,4 +1,8 @@
-// Color and pixel-level effects.
+//! Color and pixel-level effects.
+//!
+//! These filters operate on each pixel independently (no spatial neighborhood):
+//! [`BrightnessFilter`], [`ContrastFilter`], [`GrayscaleFilter`],
+//! [`InvertFilter`], and [`SepiaFilter`].
 
 pub mod brightness;
 pub mod contrast;

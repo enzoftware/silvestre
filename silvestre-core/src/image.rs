@@ -1,10 +1,16 @@
 use crate::{Result, SilvestreError};
 
 /// Supported color space representations.
+///
+/// The variant determines how many bytes each pixel occupies; see
+/// [`ColorSpace::channels`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorSpace {
+    /// Red, green, blue, and alpha — 4 bytes per pixel.
     Rgba,
+    /// Red, green, and blue — 3 bytes per pixel.
     Rgb,
+    /// Single luminance channel — 1 byte per pixel.
     Grayscale,
 }
 
@@ -34,6 +40,20 @@ impl SilvestreImage {
     ///
     /// Returns an error if the buffer length does not match
     /// `width * height * color_space.channels()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use silvestre_core::{ColorSpace, SilvestreImage};
+    ///
+    /// // A 2x1 RGB image needs 2 * 1 * 3 = 6 bytes.
+    /// let image = SilvestreImage::new(vec![0; 6], 2, 1, ColorSpace::Rgb)?;
+    /// assert_eq!(image.width(), 2);
+    ///
+    /// // A buffer of the wrong size is rejected.
+    /// assert!(SilvestreImage::new(vec![0; 5], 2, 1, ColorSpace::Rgb).is_err());
+    /// # Ok::<_, silvestre_core::SilvestreError>(())
+    /// ```
     pub fn new(pixels: Vec<u8>, width: u32, height: u32, color_space: ColorSpace) -> Result<Self> {
         let expected = (width as usize)
             .checked_mul(height as usize)
@@ -68,16 +88,19 @@ impl SilvestreImage {
         }
     }
 
+    /// Image width in pixels.
     #[must_use]
     pub fn width(&self) -> u32 {
         self.width
     }
 
+    /// Image height in pixels.
     #[must_use]
     pub fn height(&self) -> u32 {
         self.height
     }
 
+    /// The image's [`ColorSpace`].
     #[must_use]
     pub fn color_space(&self) -> ColorSpace {
         self.color_space

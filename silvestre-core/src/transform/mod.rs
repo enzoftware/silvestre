@@ -1,4 +1,7 @@
-// Geometric transformations.
+//! Geometric transformations.
+//!
+//! Operations that change pixel positions or image dimensions:
+//! [`CropFilter`], [`MirrorFilter`], [`ResizeFilter`], and [`RotateFilter`].
 
 pub mod crop;
 pub mod mirror;
