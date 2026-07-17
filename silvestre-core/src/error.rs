@@ -36,7 +36,7 @@ pub enum SilvestreError {
     },
 
     /// Pixel coordinates fell outside the image bounds.
-    #[error("pixel coordinates out of bounds: ({x}, {y}) in {width}x{height} image.")]
+    #[error("pixel coordinates out of bounds: ({x}, {y}) in {width}x{height} image")]
     OutOfBounds {
         /// The out-of-range x coordinate.
         x: u32,
@@ -47,7 +47,6 @@ pub enum SilvestreError {
         /// Image height the coordinate was checked against.
         height: u32,
     },
-
     /// An operation does not support the image's color space.
     #[error("unsupported color space: {0:?}")]
     UnsupportedColorSpace(crate::ColorSpace),
