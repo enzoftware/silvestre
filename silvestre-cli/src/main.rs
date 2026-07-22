@@ -63,10 +63,8 @@ fn run_app<B: Backend>(mut terminal: Terminal<B>, mut app: App) -> Result<(), Bo
                         KeyCode::BackTab => app.prev_field(),
                         KeyCode::Char(c) => app.input_char(c),
                         KeyCode::Backspace => app.input_backspace(),
-                        KeyCode::Enter => {
-                            if app.is_apply_button_focused() {
-                                app.apply_filter_action();
-                            }
+                        KeyCode::Enter if app.is_apply_button_focused() => {
+                            app.apply_filter_action();
                         }
                         _ => {}
                     },
