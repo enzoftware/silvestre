@@ -78,7 +78,12 @@ impl CropFilter {
     /// * `height` - Height of the crop region
     #[must_use]
     pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// The left coordinate of the crop region.
@@ -117,24 +122,22 @@ impl Filter for CropFilter {
 
         // Validate that crop region is within bounds
         let x_end = self.x.checked_add(self.width).ok_or_else(|| {
-            SilvestreError::InvalidParameter(
-                "crop x + width overflows u32".to_string(),
-            )
+            SilvestreError::InvalidParameter("crop x + width overflows u32".to_string())
         })?;
         let y_end = self.y.checked_add(self.height).ok_or_else(|| {
-            SilvestreError::InvalidParameter(
-                "crop y + height overflows u32".to_string(),
-            )
+            SilvestreError::InvalidParameter("crop y + height overflows u32".to_string())
         })?;
 
         if x_end > image.width() || y_end > image.height() {
-            return Err(SilvestreError::InvalidParameter(
-                format!(
-                    "crop region ({}, {}, {}, {}) exceeds image bounds ({}x{})",
-                    self.x, self.y, self.width, self.height,
-                    image.width(), image.height()
-                ),
-            ));
+            return Err(SilvestreError::InvalidParameter(format!(
+                "crop region ({}, {}, {}, {}) exceeds image bounds ({}x{})",
+                self.x,
+                self.y,
+                self.width,
+                self.height,
+                image.width(),
+                image.height()
+            )));
         }
 
         let channels = image.color_space().channels();
@@ -420,8 +423,8 @@ mod tests {
     #[test]
     fn crop_asymmetric_region() {
         let pixels = vec![
-            1, 2, 3, 4, 5,    // row 0
-            6, 7, 8, 9, 10,   // row 1
+            1, 2, 3, 4, 5, // row 0
+            6, 7, 8, 9, 10, // row 1
             11, 12, 13, 14, 15, // row 2
         ];
         let img = gray(5, 3, pixels);

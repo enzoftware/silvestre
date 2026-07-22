@@ -30,24 +30,17 @@ pub struct SharpenFilter {
 
 impl SharpenFilter {
     /// Create a new sharpen filter with default border mode (Clamp).
-    /// 
+    ///
     /// Returns an error if the kernel cannot be created.
     pub fn new() -> Result<Self> {
         Self::with_border(BorderMode::Clamp)
     }
 
     /// Create a new sharpen filter with a specific border mode.
-    /// 
+    ///
     /// Returns an error if the kernel cannot be created.
     pub fn with_border(border: BorderMode) -> Result<Self> {
-        let kernel = Kernel::square(
-            vec![
-                 0.0, -1.0,  0.0,
-                -1.0,  5.0, -1.0,
-                 0.0, -1.0,  0.0,
-            ],
-            3,
-        )?;
+        let kernel = Kernel::square(vec![0.0, -1.0, 0.0, -1.0, 5.0, -1.0, 0.0, -1.0, 0.0], 3)?;
         Ok(Self { kernel, border })
     }
 }
@@ -75,7 +68,7 @@ mod tests {
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
         let filter = SharpenFilter::new().unwrap();
         let out = filter.apply(&img).unwrap();
-        // The center pixel (200) has lower-valued neighbors (100). 
+        // The center pixel (200) has lower-valued neighbors (100).
         // Sharpening should push it higher.
         assert!(out.pixels()[4] > 200);
     }
@@ -96,9 +89,7 @@ mod tests {
     #[test]
     fn sharpen_rgb_image() {
         let pixels = vec![
-            0, 0, 0,  0, 0, 0,  0, 0, 0,
-            0, 0, 0,  100, 100, 100,  0, 0, 0,
-            0, 0, 0,  0, 0, 0,  0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Rgb).unwrap();
         let filter = SharpenFilter::new().unwrap();
@@ -125,8 +116,14 @@ mod tests {
     fn sharpen_with_different_border_modes() {
         let pixels = vec![100; 9];
         let img = SilvestreImage::new(pixels, 3, 3, ColorSpace::Grayscale).unwrap();
-        let out_zero = SharpenFilter::with_border(BorderMode::Zero).unwrap().apply(&img).unwrap();
-        let out_clamp = SharpenFilter::with_border(BorderMode::Clamp).unwrap().apply(&img).unwrap();
+        let out_zero = SharpenFilter::with_border(BorderMode::Zero)
+            .unwrap()
+            .apply(&img)
+            .unwrap();
+        let out_clamp = SharpenFilter::with_border(BorderMode::Clamp)
+            .unwrap()
+            .apply(&img)
+            .unwrap();
         assert_ne!(out_zero.pixels(), out_clamp.pixels());
     }
 }

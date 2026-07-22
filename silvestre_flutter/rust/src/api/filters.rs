@@ -46,8 +46,7 @@ pub fn apply_filter(
     let params: serde_json::Value = if params_json.is_empty() {
         serde_json::Value::Object(serde_json::Map::new())
     } else {
-        serde_json::from_str(&params_json)
-            .map_err(|e| format!("invalid JSON params: {e}"))?
+        serde_json::from_str(&params_json).map_err(|e| format!("invalid JSON params: {e}"))?
     };
 
     let result = apply_named_filter(&name, &img.inner, &params)?;
@@ -131,13 +130,9 @@ fn apply_named_filter(
         "resize" => {
             let w = get_u32(params, "w")?;
             let h = get_u32(params, "h")?;
-            ResizeFilter::new(
-                w,
-                h,
-                silvestre_core::transform::Interpolation::Bilinear,
-            )
-            .apply(image)
-            .map_err(|e| e.to_string())
+            ResizeFilter::new(w, h, silvestre_core::transform::Interpolation::Bilinear)
+                .apply(image)
+                .map_err(|e| e.to_string())
         }
         "rotate" => {
             let angle = get_f64(params, "angle")?;

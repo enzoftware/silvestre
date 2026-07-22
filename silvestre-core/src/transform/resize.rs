@@ -180,7 +180,12 @@ impl Filter for ResizeFilter {
             }
         }
 
-        SilvestreImage::new(dst, self.target_width, self.target_height, image.color_space())
+        SilvestreImage::new(
+            dst,
+            self.target_width,
+            self.target_height,
+            image.color_space(),
+        )
     }
 }
 
@@ -282,8 +287,14 @@ mod tests {
         // source, showing that blending occurred.
         let center_tl = out.get_pixel(1, 1).unwrap()[0];
         let center_tr = out.get_pixel(2, 1).unwrap()[0];
-        assert!(center_tl < 255 && center_tl > 0, "expected blending at (1,1), got {center_tl}");
-        assert!(center_tr < 255 && center_tr > 0, "expected blending at (2,1), got {center_tr}");
+        assert!(
+            center_tl < 255 && center_tl > 0,
+            "expected blending at (1,1), got {center_tl}"
+        );
+        assert!(
+            center_tr < 255 && center_tr > 0,
+            "expected blending at (2,1), got {center_tr}"
+        );
     }
 
     #[test]
@@ -354,8 +365,7 @@ mod tests {
     #[test]
     fn nearest_upscale_rgb() {
         // 1×1 RGB image → 2×2
-        let img =
-            SilvestreImage::new(vec![100, 150, 200], 1, 1, ColorSpace::Rgb).unwrap();
+        let img = SilvestreImage::new(vec![100, 150, 200], 1, 1, ColorSpace::Rgb).unwrap();
         let out = ResizeFilter::new(2, 2, Interpolation::NearestNeighbor)
             .apply(&img)
             .unwrap();
@@ -363,14 +373,16 @@ mod tests {
         assert_eq!(out.height(), 2);
         assert_eq!(out.color_space(), ColorSpace::Rgb);
         // Every pixel must equal the single source pixel.
-        assert_eq!(out.pixels(), &[100, 150, 200, 100, 150, 200, 100, 150, 200, 100, 150, 200]);
+        assert_eq!(
+            out.pixels(),
+            &[100, 150, 200, 100, 150, 200, 100, 150, 200, 100, 150, 200]
+        );
     }
 
     #[test]
     fn bilinear_upscale_rgba_preserves_channels() {
         // 1×1 RGBA → 2×2; all output pixels equal the single source pixel.
-        let img =
-            SilvestreImage::new(vec![10, 20, 30, 255], 1, 1, ColorSpace::Rgba).unwrap();
+        let img = SilvestreImage::new(vec![10, 20, 30, 255], 1, 1, ColorSpace::Rgba).unwrap();
         let out = ResizeFilter::new(2, 2, Interpolation::Bilinear)
             .apply(&img)
             .unwrap();
@@ -477,7 +489,8 @@ mod tests {
 
     #[test]
     fn filter_trait_object_nearest() {
-        let filter: Box<dyn Filter> = Box::new(ResizeFilter::new(2, 2, Interpolation::NearestNeighbor));
+        let filter: Box<dyn Filter> =
+            Box::new(ResizeFilter::new(2, 2, Interpolation::NearestNeighbor));
         let img = gray(1, 1, vec![42]);
         let out = filter.apply(&img).unwrap();
         assert_eq!(out.width(), 2);

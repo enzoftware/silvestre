@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # ── Formatting & linting (fast, fail early) ───────────────────────────────
+  lint:
+    name: Format & Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # ── Build & test the Rust workspace on all three OSes ─────────────────────
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
+
+      - name: Build workspace
+        run: cargo build --workspace --verbose
+
+      - name: Test workspace (lib + doc)
+        run: cargo test --workspace --verbose
+
+      - name: Build silvestre-cli
+        run: cargo build -p silvestre-cli --verbose
+
+  # ── WebAssembly build ─────────────────────────────────────────────────────
+  wasm:
+    name: WASM build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: wasm-pack build
+        working-directory: silvestre-wasm
+        run: wasm-pack build --target web --out-dir pkg
+
+  # ── Flutter package: analyze, test, and native bridge build ───────────────
+  flutter:
+    name: Flutter package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: flutter
+
+      - name: Build the Rust bridge crate
+        run: cargo build -p silvestre_flutter_rust --verbose
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve plugin dependencies
+        working-directory: silvestre_flutter
+        run: flutter pub get
+
+      - name: Verify formatting
+        working-directory: silvestre_flutter
+        run: dart format --set-exit-if-changed lib
+
+      - name: Analyze plugin
+        working-directory: silvestre_flutter
+        run: flutter analyze lib
+
+      - name: Resolve example dependencies
+        working-directory: silvestre_flutter/example
+        run: flutter pub get
+
+      - name: Analyze & test example
+        working-directory: silvestre_flutter/example
+        run: |
+          flutter analyze lib test
+          flutter test

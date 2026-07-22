@@ -227,8 +227,7 @@ mod tests {
             }
         }
         let kernel_2d = Kernel::square(values_2d, size).unwrap();
-        let sep_kernel =
-            SeparableKernel::new(coeffs.clone(), coeffs).unwrap();
+        let sep_kernel = SeparableKernel::new(coeffs.clone(), coeffs).unwrap();
 
         let img = gray_image(8, 8, (0..64u8).collect());
 

@@ -1,9 +1,9 @@
 //! Application state and logic
 
-use std::path::PathBuf;
-use image::ImageReader;
-use silvestre_core::{SilvestreImage, ColorSpace};
 use crate::filters::{apply_named_filter, silvestre_to_dynamic, validate_filter, KNOWN_FILTERS};
+use image::ImageReader;
+use silvestre_core::{ColorSpace, SilvestreImage};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Screen {
@@ -266,16 +266,23 @@ impl App {
         };
     }
 
-    fn apply_filter_impl(&self, input_path: &str, output_path: &str, filter_name: &str, params: &str) -> Result<String, String> {
+    fn apply_filter_impl(
+        &self,
+        input_path: &str,
+        output_path: &str,
+        filter_name: &str,
+        params: &str,
+    ) -> Result<String, String> {
         let input_file = PathBuf::from(input_path);
         if !input_file.exists() {
             return Err("Input file not found!".to_string());
         }
 
         // Load image
-        let reader = ImageReader::open(&input_file)
-            .map_err(|e| format!("Failed to read image: {}", e))?;
-        let dynamic_image = reader.decode()
+        let reader =
+            ImageReader::open(&input_file).map_err(|e| format!("Failed to read image: {}", e))?;
+        let dynamic_image = reader
+            .decode()
             .map_err(|e| format!("Failed to decode image: {}", e))?;
         let rgba_image = dynamic_image.to_rgba8();
         let (width, height) = rgba_image.dimensions();
@@ -293,7 +300,10 @@ impl App {
             .save(output_path)
             .map_err(|e| format!("Failed to save image: {}", e))?;
 
-        Ok(format!("Filter applied successfully! 🎉 Saved to {}", output_path))
+        Ok(format!(
+            "Filter applied successfully! 🎉 Saved to {}",
+            output_path
+        ))
     }
 
     pub fn is_processing_done(&self) -> bool {
@@ -317,27 +327,26 @@ impl App {
 
         let path = PathBuf::from(&self.info_input);
         if !path.exists() {
-            self.status_message = "File not found! Silvestre couldn't find it either 🔍".to_string();
+            self.status_message =
+                "File not found! Silvestre couldn't find it either 🔍".to_string();
             return;
         }
 
         match ImageReader::open(&path) {
-            Ok(reader) => {
-                match reader.decode() {
-                    Ok(image) => {
-                        let width = image.width();
-                        let height = image.height();
-                        let color_type = format!("{:?}", image.color());
-                        self.status_message = format!(
-                            "📷 {}x{} {} (Silvestre approves ✓)",
-                            width, height, color_type
-                        );
-                    }
-                    Err(e) => {
-                        self.status_message = format!("Decode error: {} 🐱", e);
-                    }
+            Ok(reader) => match reader.decode() {
+                Ok(image) => {
+                    let width = image.width();
+                    let height = image.height();
+                    let color_type = format!("{:?}", image.color());
+                    self.status_message = format!(
+                        "📷 {}x{} {} (Silvestre approves ✓)",
+                        width, height, color_type
+                    );
                 }
-            }
+                Err(e) => {
+                    self.status_message = format!("Decode error: {} 🐱", e);
+                }
+            },
             Err(e) => {
                 self.status_message = format!("Read error: {} 🐱", e);
             }
@@ -469,8 +478,7 @@ impl App {
             self.status_message = "Check at least one filter before running 🐱".to_string();
             return;
         }
-        if self.pipeline_input_file.trim().is_empty()
-            || self.pipeline_output_file.trim().is_empty()
+        if self.pipeline_input_file.trim().is_empty() || self.pipeline_output_file.trim().is_empty()
         {
             self.status_message = "Please specify input and output files 🐱".to_string();
             return;
@@ -571,7 +579,11 @@ mod tests {
     /// return that path. `tag` keeps parallel tests from colliding.
     fn write_test_png(tag: &str, w: u32, h: u32) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("silvestre_pipeline_{}_{}.png", std::process::id(), tag));
+        path.push(format!(
+            "silvestre_pipeline_{}_{}.png",
+            std::process::id(),
+            tag
+        ));
         let buffer = image::RgbaImage::from_pixel(w, h, image::Rgba([100, 150, 200, 255]));
         image::DynamicImage::ImageRgba8(buffer).save(&path).unwrap();
         path
@@ -579,7 +591,11 @@ mod tests {
 
     fn out_path(tag: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("silvestre_pipeline_out_{}_{}.png", std::process::id(), tag));
+        path.push(format!(
+            "silvestre_pipeline_out_{}_{}.png",
+            std::process::id(),
+            tag
+        ));
         path
     }
 
@@ -594,12 +610,8 @@ mod tests {
         // and fails.
         let steps = vec![step("crop", "10,10,20,20"), step("resize", "5,5")];
 
-        let msg = run_pipeline(
-            input.to_str().unwrap(),
-            output.to_str().unwrap(),
-            &steps,
-        )
-        .expect("pipeline should succeed");
+        let msg = run_pipeline(input.to_str().unwrap(), output.to_str().unwrap(), &steps)
+            .expect("pipeline should succeed");
 
         assert!(msg.contains("2 step(s)"));
 
@@ -641,12 +653,8 @@ mod tests {
             step("invert", ""),
         ];
 
-        let err = run_pipeline(
-            input.to_str().unwrap(),
-            output.to_str().unwrap(),
-            &steps,
-        )
-        .unwrap_err();
+        let err =
+            run_pipeline(input.to_str().unwrap(), output.to_str().unwrap(), &steps).unwrap_err();
 
         assert!(err.contains("Step 2"), "error was: {}", err);
         assert!(err.contains("crop"), "error was: {}", err);
@@ -664,8 +672,12 @@ mod tests {
         // found" error from trying to open the (missing) file.
         let steps = vec![step("grayscale", ""), step("brightness", "notanumber")];
 
-        let err = run_pipeline("/no/such/validate_input.png", output.to_str().unwrap(), &steps)
-            .unwrap_err();
+        let err = run_pipeline(
+            "/no/such/validate_input.png",
+            output.to_str().unwrap(),
+            &steps,
+        )
+        .unwrap_err();
 
         assert!(err.contains("Step 2"), "error was: {}", err);
         assert!(!err.contains("not found"), "error was: {}", err);
@@ -696,7 +708,10 @@ mod tests {
     #[test]
     fn pipeline_list_mirrors_known_filters() {
         let app = App::new();
-        assert_eq!(app.pipeline_filters.len(), crate::filters::KNOWN_FILTERS.len());
+        assert_eq!(
+            app.pipeline_filters.len(),
+            crate::filters::KNOWN_FILTERS.len()
+        );
         // All start unchecked with empty params.
         assert!(app.pipeline_filters.iter().all(|f| !f.enabled));
         assert!(app.pipeline_filters.iter().all(|f| f.params.is_empty()));
@@ -743,7 +758,9 @@ mod tests {
 
         // Highlighted filter is disabled: typing is ignored.
         app.pipeline_input_char('9');
-        assert!(app.pipeline_filters[app.pipeline_selected].params.is_empty());
+        assert!(app.pipeline_filters[app.pipeline_selected]
+            .params
+            .is_empty());
 
         // Enable it, then typing edits its params.
         app.pipeline_toggle_selected();

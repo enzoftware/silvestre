@@ -474,13 +474,9 @@ fn apply_named_filter(
         "resize" => {
             let w = parse_param_u32(params, "w")?;
             let h = parse_param_u32(params, "h")?;
-            ResizeFilter::new(
-                w,
-                h,
-                silvestre_core::transform::Interpolation::Bilinear,
-            )
-            .apply(image)
-            .map_err(|e| e.to_string())
+            ResizeFilter::new(w, h, silvestre_core::transform::Interpolation::Bilinear)
+                .apply(image)
+                .map_err(|e| e.to_string())
         }
         "rotate" => {
             let angle = parse_param_f64(params, "angle")?;
@@ -536,8 +532,7 @@ fn extract_json_value(json: &str, key: &str) -> Result<String, String> {
     };
 
     // If the value is a quoted string
-    if after_colon.starts_with('"') {
-        let content = &after_colon[1..];
+    if let Some(content) = after_colon.strip_prefix('"') {
         let end = content
             .find('"')
             .ok_or_else(|| format!("unterminated string for parameter: {key}"))?;
@@ -546,7 +541,7 @@ fn extract_json_value(json: &str, key: &str) -> Result<String, String> {
 
     // Otherwise it's a number/boolean — take until comma, brace, or end.
     let end = after_colon
-        .find(|c: char| c == ',' || c == '}' || c == ']')
+        .find([',', '}', ']'])
         .unwrap_or(after_colon.len());
 
     let value = after_colon[..end].trim();
@@ -607,8 +602,7 @@ mod tests {
             0, 0, 255, 255, // blue
             255, 255, 0, 255, // yellow
         ];
-        let ptr =
-            unsafe { silvestre_image_from_buffer(pixels.as_ptr(), pixels.len(), 2, 2) };
+        let ptr = unsafe { silvestre_image_from_buffer(pixels.as_ptr(), pixels.len(), 2, 2) };
         assert!(!ptr.is_null(), "failed to create test image");
         ptr
     }
@@ -648,8 +642,7 @@ mod tests {
     #[test]
     fn test_image_from_buffer_size_mismatch() {
         let pixels: Vec<u8> = vec![0; 4]; // 4 bytes but asking for 2x2 (needs 16)
-        let img =
-            unsafe { silvestre_image_from_buffer(pixels.as_ptr(), pixels.len(), 2, 2) };
+        let img = unsafe { silvestre_image_from_buffer(pixels.as_ptr(), pixels.len(), 2, 2) };
         assert!(img.is_null());
         let err = silvestre_last_error();
         assert!(!err.is_null());
@@ -692,7 +685,7 @@ mod tests {
             assert!(!p.is_null());
             let len = silvestre_image_pixels_len(img);
             assert_eq!(len, 16); // 2*2*4
-            // First pixel is red
+                                 // First pixel is red
             assert_eq!(*p, 255);
             assert_eq!(*p.add(1), 0);
             assert_eq!(*p.add(2), 0);
@@ -706,9 +699,7 @@ mod tests {
     #[test]
     fn test_save_null_image() {
         let path = CString::new("/tmp/test.png").unwrap();
-        let rc = unsafe {
-            silvestre_image_save(ptr::null(), path.as_ptr(), ptr::null())
-        };
+        let rc = unsafe { silvestre_image_save(ptr::null(), path.as_ptr(), ptr::null()) };
         assert_eq!(rc, ERR);
     }
 
@@ -765,8 +756,7 @@ mod tests {
     #[test]
     fn test_apply_filter_null_image() {
         let name = CString::new("grayscale").unwrap();
-        let rc =
-            unsafe { silvestre_apply_filter(ptr::null_mut(), name.as_ptr(), ptr::null()) };
+        let rc = unsafe { silvestre_apply_filter(ptr::null_mut(), name.as_ptr(), ptr::null()) };
         assert_eq!(rc, ERR);
     }
 

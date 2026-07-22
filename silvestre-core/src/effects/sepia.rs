@@ -112,9 +112,15 @@ mod tests {
     // Helper: apply the sepia matrix to (r,g,b) and return (r_out, g_out, b_out).
     fn sepia_pixel(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
         let (rf, gf, bf) = (f32::from(r), f32::from(g), f32::from(b));
-        let r_out = (0.393 * rf + 0.769 * gf + 0.189 * bf).round().clamp(0.0, 255.0) as u8;
-        let g_out = (0.349 * rf + 0.686 * gf + 0.168 * bf).round().clamp(0.0, 255.0) as u8;
-        let b_out = (0.272 * rf + 0.534 * gf + 0.131 * bf).round().clamp(0.0, 255.0) as u8;
+        let r_out = (0.393 * rf + 0.769 * gf + 0.189 * bf)
+            .round()
+            .clamp(0.0, 255.0) as u8;
+        let g_out = (0.349 * rf + 0.686 * gf + 0.168 * bf)
+            .round()
+            .clamp(0.0, 255.0) as u8;
+        let b_out = (0.272 * rf + 0.534 * gf + 0.131 * bf)
+            .round()
+            .clamp(0.0, 255.0) as u8;
         (r_out, g_out, b_out)
     }
 

@@ -9,12 +9,19 @@ use silvestre_core::{
 };
 
 // Strategy for generating valid images
-fn arb_image(max_width: u32, max_height: u32) -> impl Strategy<Value = (u32, u32, ColorSpace, Vec<u8>)> {
-    (1..=max_width, 1..=max_height, Just(ColorSpace::Grayscale))
-        .prop_flat_map(|(w, h, cs)| {
-            let len = (w as usize) * (h as usize) * cs.channels();
-            (Just(w), Just(h), Just(cs), prop::collection::vec(0u8..=255, len..=len))
-        })
+fn arb_image(
+    max_width: u32,
+    max_height: u32,
+) -> impl Strategy<Value = (u32, u32, ColorSpace, Vec<u8>)> {
+    (1..=max_width, 1..=max_height, Just(ColorSpace::Grayscale)).prop_flat_map(|(w, h, cs)| {
+        let len = (w as usize) * (h as usize) * cs.channels();
+        (
+            Just(w),
+            Just(h),
+            Just(cs),
+            prop::collection::vec(0u8..=255, len..=len),
+        )
+    })
 }
 
 proptest! {

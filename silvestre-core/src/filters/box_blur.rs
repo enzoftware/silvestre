@@ -30,14 +30,14 @@ pub struct BoxBlurFilter {
 
 impl BoxBlurFilter {
     /// Create a new box blur filter with default border mode (Clamp).
-    /// 
+    ///
     /// Returns an error if the kernel cannot be created.
     pub fn new() -> Result<Self> {
         Self::with_border(BorderMode::Clamp)
     }
 
     /// Create a new box blur filter with a specific border mode.
-    /// 
+    ///
     /// Returns an error if the kernel cannot be created.
     pub fn with_border(border: BorderMode) -> Result<Self> {
         let coeffs = vec![1.0 / 3.0; 3];
@@ -121,17 +121,26 @@ mod tests {
 
     #[test]
     fn border_modes() {
-        let img = gray_image(3, 3, vec![0, 0, 0, 0, 255, 0, 0, 0, 0]);
-        
+        // A uniformly bright image distinguishes the border modes: `Clamp`
+        // replicates the bright edge so corners stay bright, while `Zero` pads
+        // with 0 and pulls the corners down. (An all-zero border, by contrast,
+        // makes the two modes identical, so it can't be used here.)
+        let img = gray_image(3, 3, vec![255; 9]);
+
         let filter_clamp = BoxBlurFilter::with_border(BorderMode::Clamp).unwrap();
         let out_clamp = filter_clamp.apply(&img).unwrap();
-        
+
         let filter_zero = BoxBlurFilter::with_border(BorderMode::Zero).unwrap();
         let out_zero = filter_zero.apply(&img).unwrap();
-        
-        // They should result in different values at the edges.
+
         assert_eq!(out_clamp.width(), 3);
         assert_eq!(out_zero.width(), 3);
+
+        // Clamp preserves the uniform brightness everywhere.
+        assert!(out_clamp.pixels().iter().all(|&v| v == 255));
+        // Zero darkens the edges (fewer in-bounds bright neighbors), so the
+        // two modes must differ.
         assert_ne!(out_clamp.pixels(), out_zero.pixels());
+        assert!(out_zero.pixels()[0] < 255);
     }
 }

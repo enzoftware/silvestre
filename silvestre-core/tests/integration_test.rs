@@ -94,7 +94,9 @@ fn test_mirror_round_trip() {
     let img = create_test_image(12, 12, ColorSpace::Rgb);
 
     // Mirror horizontally twice should be identity
-    let h_flip = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+    let h_flip = MirrorFilter::new(MirrorMode::Horizontal)
+        .apply(&img)
+        .unwrap();
     let h_flip_again = MirrorFilter::new(MirrorMode::Horizontal)
         .apply(&h_flip)
         .unwrap();
@@ -147,7 +149,9 @@ fn test_1x1_image_operations() {
     let _ = BrightnessFilter::new(50).apply(&img).unwrap();
     let _ = GrayscaleFilter.apply(&img).unwrap();
     let _ = InvertFilter.apply(&img).unwrap();
-    let _ = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+    let _ = MirrorFilter::new(MirrorMode::Horizontal)
+        .apply(&img)
+        .unwrap();
 }
 
 #[test]
@@ -187,11 +191,7 @@ fn test_large_image_operations() {
 
 #[test]
 fn test_all_color_spaces() {
-    for color_space in [
-        ColorSpace::Grayscale,
-        ColorSpace::Rgb,
-        ColorSpace::Rgba,
-    ] {
+    for color_space in [ColorSpace::Grayscale, ColorSpace::Rgb, ColorSpace::Rgba] {
         let img = create_test_image(8, 8, color_space);
 
         // Test that basic operations preserve color space

@@ -134,16 +134,11 @@ impl Filter for MedianFilter {
                     window.clear();
                     for ky in -half..=half {
                         for kx in -half..=half {
-                            let sample = match resolve_coord(
-                                x + kx,
-                                y + ky,
-                                width,
-                                height,
-                                self.border,
-                            ) {
-                                Some((sx, sy)) => src[sy * stride + sx * channels + c],
-                                None => 0,
-                            };
+                            let sample =
+                                match resolve_coord(x + kx, y + ky, width, height, self.border) {
+                                    Some((sx, sy)) => src[sy * stride + sx * channels + c],
+                                    None => 0,
+                                };
                             window.push(sample);
                         }
                     }

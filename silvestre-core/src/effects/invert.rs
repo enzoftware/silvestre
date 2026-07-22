@@ -40,8 +40,8 @@ pub fn invert(image: &SilvestreImage) -> Result<SilvestreImage> {
     let mut dst = image.pixels().to_vec();
 
     for pixel in dst.chunks_exact_mut(channels) {
-        for c in 0..colour_channels {
-            pixel[c] = 255 - pixel[c];
+        for channel in pixel.iter_mut().take(colour_channels) {
+            *channel = 255 - *channel;
         }
     }
 
