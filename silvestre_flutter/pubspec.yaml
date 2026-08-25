@@ -1,7 +1,15 @@
 name: silvestre_flutter
-description: Flutter plugin for silvestre image processing library, powered by flutter_rust_bridge.
+description: Cross-platform Flutter plugin for the Silvestre image processing library. High-performance filters, effects, transforms, and analysis powered by Rust.
 version: 0.1.0
-publish_to: none
+homepage: https://github.com/enzoftware/silvestre
+repository: https://github.com/enzoftware/silvestre/tree/main/silvestre_flutter
+issue_tracker: https://github.com/enzoftware/silvestre/issues
+topics:
+  - image-processing
+  - filters
+  - rust
+  - flutter-rust-bridge
+  - effects
 
 environment:
   sdk: ^3.7.0
@@ -10,7 +18,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_rust_bridge: 2.12.0
+  flutter_rust_bridge: ^2.12.0
   meta: ^1.11.0
 
 dev_dependencies:

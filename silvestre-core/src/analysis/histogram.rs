@@ -182,15 +182,17 @@ impl Histogram {
                 }
             }
             ColorSpace::Rgb => {
-                for chunk in src.chunks_exact(3) {
-                    let lum = luminance_bt601(chunk[0], chunk[1], chunk[2]);
+                let (chunks, _) = src.as_chunks::<3>();
+                for &[r, g, b] in chunks {
+                    let lum = luminance_bt601(r, g, b);
                     bins[lum as usize] += 1;
                     sum += lum as u64;
                 }
             }
             ColorSpace::Rgba => {
-                for chunk in src.chunks_exact(4) {
-                    let lum = luminance_bt601(chunk[0], chunk[1], chunk[2]);
+                let (chunks, _) = src.as_chunks::<4>();
+                for &[r, g, b, _] in chunks {
+                    let lum = luminance_bt601(r, g, b);
                     bins[lum as usize] += 1;
                     sum += lum as u64;
                 }

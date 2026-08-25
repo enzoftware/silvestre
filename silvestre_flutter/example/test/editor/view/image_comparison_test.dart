@@ -18,8 +18,10 @@ final _pngBytes = Uint8List.fromList([
 ]);
 
 void main() {
-  Widget wrap(Widget child) =>
-      MaterialApp(home: Scaffold(body: SingleChildScrollView(child: child)));
+  Widget wrap(Widget child) => MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
+        home: Scaffold(body: SingleChildScrollView(child: child)),
+      );
 
   group('ImageComparison', () {
     testWidgets('shows no mode toggle when there is no filtered result', (

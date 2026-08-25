@@ -70,7 +70,18 @@ Pull request descriptions should include:
 
 ---
 
-## 5. Verification Commands
+## 5. Release Conventions & Tagging
+
+Each platform deliverable has an isolated tag namespace (see [docs/release-guide.md](docs/release-guide.md) for full details):
+- **Flutter:** `flutter-v<version>` (publishes to pub.dev)
+- **Rust Core:** `core-v<version>` (publishes to crates.io)
+- **CLI Binary:** `cli-v<version>` (GitHub Release binaries)
+- **WebAssembly:** `wasm-v<version>` (publishes to npm)
+- **C FFI:** `ffi-v<version>` (GitHub Release C headers & static libs)
+
+---
+
+## 6. Verification Commands
 
 ```bash
 # Test entire Rust workspace

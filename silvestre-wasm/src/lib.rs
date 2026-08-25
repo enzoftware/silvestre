@@ -123,9 +123,9 @@ fn to_rgba_pixels(img: &SilvestreImage) -> Vec<u8> {
         ColorSpace::Rgba => pixels.to_vec(),
         ColorSpace::Rgb => {
             let mut rgba = Vec::with_capacity(pixels.len() / 3 * 4);
-            for chunk in pixels.chunks_exact(3) {
-                rgba.extend_from_slice(chunk);
-                rgba.push(255);
+            let (chunks, _) = pixels.as_chunks::<3>();
+            for &[r, g, b] in chunks {
+                rgba.extend_from_slice(&[r, g, b, 255]);
             }
             rgba
         }

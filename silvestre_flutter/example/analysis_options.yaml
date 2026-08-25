@@ -1,4 +1,10 @@
 include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "build/**"
+    - "**/build/**"
+
 linter:
   rules:
     public_member_api_docs: false
