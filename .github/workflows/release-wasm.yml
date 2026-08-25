@@ -12,15 +12,21 @@ on:
         default: true
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: release-wasm-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build & Release silvestre-wasm
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
@@ -29,7 +35,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee08c636a485ce80808d77cbe4a4 # v2.7.8
         with:
           key: wasm-release
 
@@ -46,6 +52,16 @@ jobs:
         working-directory: silvestre-wasm
         run: wasm-pack build --target bundler --out-dir pkg
 
+      - name: Validate tag version matches package.json
+        if: startsWith(github.ref, 'refs/tags/wasm-v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#wasm-v}"
+          PKG_VERSION=$(jq -r '.version' silvestre-wasm/pkg/package.json)
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+
       - name: Verify npm package (dry-run)
         working-directory: silvestre-wasm/pkg
         run: npm publish --dry-run
@@ -59,7 +75,7 @@ jobs:
 
       - name: Create GitHub Release
         if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/wasm-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c062e08bd53287ba072042f618b096e7025874a2 # v2.2.1
         with:
           generate_release_notes: true
           files: |

@@ -55,7 +55,7 @@ fn main() -> Result<(), silvestre_core::SilvestreError> {
     let image = SilvestreImage::load("input.png")?;
 
     // 2. Apply filters sequentially
-    let blurred = GaussianFilter::new(2.0).apply(&image)?;
+    let blurred = GaussianFilter::new(2.0)?.apply(&image)?;
     let edges = CannyFilter::new(50.0, 150.0, 1.4).apply(&blurred)?;
 
     // 3. Apply geometric transformation
@@ -64,7 +64,7 @@ fn main() -> Result<(), silvestre_core::SilvestreError> {
 
     // 4. Compute image histogram statistics
     if let Some(hist) = Histogram::luminance(&image) {
-        let stats = &hist.stats()[0];
+        let stats = hist.stats(0);
         println!("Mean intensity: {:.2}, StdDev: {:.2}", stats.mean, stats.std_dev);
     }
 
@@ -83,7 +83,7 @@ fn main() -> Result<(), silvestre_core::SilvestreError> {
 The library is centered around the composable `Filter` trait:
 
 ```rust
-pub trait Filter {
+pub trait Filter: Send + Sync {
     fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage, SilvestreError>;
 }
 ```
@@ -92,7 +92,7 @@ Because filters do not mutate the input image in place, they can be safely share
 
 ```rust
 let pipeline: Vec<Box<dyn Filter>> = vec![
-    Box::new(GaussianFilter::new(1.5)),
+    Box::new(GaussianFilter::new(1.5)?),
     Box::new(BrightnessFilter::new(20)),
     Box::new(GrayscaleFilter),
 ];

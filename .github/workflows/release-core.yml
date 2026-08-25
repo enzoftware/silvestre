@@ -12,23 +12,39 @@ on:
         default: true
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-core-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build & Release silvestre-core
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee08c636a485ce80808d77cbe4a4 # v2.7.8
         with:
           key: core-release
+
+      - name: Validate tag version matches Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/core-v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#core-v}"
+          CARGO_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "silvestre-core") | .version')
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
 
       - name: Run unit & integration tests
         run: cargo test -p silvestre-core --verbose
@@ -41,11 +57,13 @@ jobs:
 
       - name: Publish to crates.io
         if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/core-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
-        run: cargo publish -p silvestre-core --token ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish -p silvestre-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Create GitHub Release
         if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/core-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c062e08bd53287ba072042f618b096e7025874a2 # v2.2.1
         with:
           generate_release_notes: true
           files: |

@@ -66,7 +66,7 @@ Because Silvestre produces multiple distinct deliverables across different packa
 ### Step-by-Step Guide:
 
 1. **Update Version:**
-   In `Cargo.toml` (workspace or `silvestre-core/Cargo.toml`), set the version:
+   In the root `Cargo.toml`, set `[workspace.package].version`:
    ```toml
    [workspace.package]
    version = "0.1.0"
