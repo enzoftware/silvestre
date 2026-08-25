@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'flutter-v*'
-      - 'v*'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -13,22 +12,28 @@ on:
         default: true
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: release-flutter-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Validate & Release silvestre_flutter
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee08c636a485ce80808d77cbe4a4 # v2.7.8
         with:
           key: flutter-release
 
@@ -40,6 +45,16 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Validate tag version matches pubspec.yaml
+        if: startsWith(github.ref, 'refs/tags/flutter-v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#flutter-v}"
+          PUBSPEC_VERSION=$(grep '^version:' silvestre_flutter/pubspec.yaml | awk '{print $2}')
+          if [ "$TAG_VERSION" != "$PUBSPEC_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match pubspec.yaml version ($PUBSPEC_VERSION)"
+            exit 1
+          fi
 
       - name: Resolve plugin dependencies
         working-directory: silvestre_flutter
@@ -62,13 +77,13 @@ jobs:
         run: dart pub publish --dry-run
 
       - name: Publish to pub.dev
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/flutter-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
         working-directory: silvestre_flutter
         run: dart pub publish --force
 
       - name: Create GitHub Release
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
-        uses: softprops/action-gh-release@v2
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/flutter-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        uses: softprops/action-gh-release@c062e08bd53287ba072042f618b096e7025874a2 # v2.2.1
         with:
           generate_release_notes: true
           files: |

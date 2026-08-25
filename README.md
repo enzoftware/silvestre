@@ -91,11 +91,17 @@ cargo test --workspace
 
 ### 1. Rust (`silvestre-core`)
 
-Add the crate to your `Cargo.toml`:
+Available on crates.io as [`silvestre-core`](https://crates.io/crates/silvestre-core):
 
 ```toml
 [dependencies]
-silvestre-core = { git = "https://github.com/enzoftware/silvestre" }
+silvestre-core = "0.1"
+```
+
+Or install with `cargo`:
+
+```bash
+cargo add silvestre-core
 ```
 
 Every operation implements the [`Filter`] trait and returns a **new** image,

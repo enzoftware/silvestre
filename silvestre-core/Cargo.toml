@@ -1,10 +1,15 @@
 [package]
 name = "silvestre-core"
-description = "Cross-platform image processing library"
+description = "Pure Rust image processing library providing composable filters, effects, transformations, and histogram analysis."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage = "https://github.com/enzoftware/silvestre"
+documentation = "https://docs.rs/silvestre-core"
+readme = "README.md"
+keywords = ["image-processing", "filters", "canny", "sobel", "computer-vision"]
+categories = ["multimedia::images", "algorithms"]
 
 [dependencies]
 image = { workspace = true }
