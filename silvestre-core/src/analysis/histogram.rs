@@ -329,7 +329,7 @@ mod tests {
     #[test]
     fn solid_color_rgb_single_spike_per_channel() {
         // Solid red 2×2 image.
-        let pixels: Vec<u8> = vec![255, 0, 0].repeat(4);
+        let pixels: Vec<u8> = [255, 0, 0].repeat(4);
         let img = SilvestreImage::new(pixels, 2, 2, ColorSpace::Rgb).unwrap();
         let hist = Histogram::compute(&img);
         // Red channel spike at 255.

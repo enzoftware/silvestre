@@ -68,11 +68,7 @@ pub fn image_pixels(img: &SilvestreImageWrapper) -> Vec<u8> {
 /// Save the image to a file path in the specified format.
 ///
 /// `format` must be one of: `"png"`, `"jpeg"` / `"jpg"`, `"bmp"`.
-pub fn save_image(
-    img: &SilvestreImageWrapper,
-    path: String,
-    format: String,
-) -> Result<(), String> {
+pub fn save_image(img: &SilvestreImageWrapper, path: String, format: String) -> Result<(), String> {
     let fmt = parse_format(&format)?;
     img.inner
         .save_with_format(&path, fmt)

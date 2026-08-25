@@ -181,7 +181,15 @@ impl RotateFilter {
     }
 
     /// Bilinear interpolation for sampling a source image at fractional coordinates.
-    fn bilinear_sample(src: &[u8], src_w: usize, src_h: usize, x: f64, y: f64, channels: usize, channel_idx: usize) -> u8 {
+    fn bilinear_sample(
+        src: &[u8],
+        src_w: usize,
+        src_h: usize,
+        x: f64,
+        y: f64,
+        channels: usize,
+        channel_idx: usize,
+    ) -> u8 {
         let x = x.max(0.0).min(src_w as f64 - 1.0);
         let y = y.max(0.0).min(src_h as f64 - 1.0);
 
@@ -202,7 +210,7 @@ impl RotateFilter {
         let bottom = v01 * (1.0 - fx) + v11 * fx;
         let value = top * (1.0 - fy) + bottom * fy;
 
-        (value.round().max(0.0).min(255.0)) as u8
+        value.round().clamp(0.0, 255.0) as u8
     }
 
     /// Get background color value for a single channel based on color space.
@@ -251,7 +259,8 @@ impl RotateFilter {
                     }
                 } else {
                     for c in 0..channels {
-                        let value = Self::bilinear_sample(src, src_w, src_h, src_x, src_y, channels, c);
+                        let value =
+                            Self::bilinear_sample(src, src_w, src_h, src_x, src_y, channels, c);
                         dst[(dst_y * src_w + dst_x) * channels + c] = value;
                     }
                 }
@@ -276,7 +285,9 @@ mod tests {
     fn rotate_0_degrees_returns_clone() {
         let pixels = vec![1, 2, 3, 4, 5, 6];
         let img = gray(3, 2, pixels.clone());
-        let rotated = RotateFilter::new(0.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        let rotated = RotateFilter::new(0.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
         assert_eq!(rotated.pixels(), &pixels);
         assert_eq!(rotated.width(), img.width());
         assert_eq!(rotated.height(), img.height());
@@ -286,7 +297,9 @@ mod tests {
     fn rotate_360_degrees_returns_clone() {
         let pixels = vec![1, 2, 3, 4, 5, 6];
         let img = gray(3, 2, pixels.clone());
-        let rotated = RotateFilter::new(360.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        let rotated = RotateFilter::new(360.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
         assert_eq!(rotated.pixels(), &pixels);
     }
 
@@ -294,7 +307,9 @@ mod tests {
     fn rotate_negative_angle_normalizes() {
         let pixels = vec![1, 2, 3, 4];
         let img = gray(2, 2, pixels.clone());
-        let rotated = RotateFilter::new(-360.0, 255, [255, 255, 255]).apply(&img).unwrap();
+        let rotated = RotateFilter::new(-360.0, 255, [255, 255, 255])
+            .apply(&img)
+            .unwrap();
         assert_eq!(rotated.pixels(), &pixels);
     }
 
@@ -547,9 +562,7 @@ mod tests {
     fn rotate_arbitrary_small_angle() {
         let pixels: Vec<u8> = (0..16).collect();
         let img = gray(4, 4, pixels);
-        let rotated = RotateFilter::new(5.0, 0, [0, 0, 0])
-            .apply(&img)
-            .unwrap();
+        let rotated = RotateFilter::new(5.0, 0, [0, 0, 0]).apply(&img).unwrap();
         assert_eq!(rotated.width(), 4);
         assert_eq!(rotated.height(), 4);
         let rotated_pixels = rotated.pixels();
@@ -565,9 +578,7 @@ mod tests {
     #[test]
     fn rotate_arbitrary_background_grayscale() {
         let img = gray(2, 2, vec![100; 4]);
-        let rotated = RotateFilter::new(45.0, 0, [0, 0, 0])
-            .apply(&img)
-            .unwrap();
+        let rotated = RotateFilter::new(45.0, 0, [0, 0, 0]).apply(&img).unwrap();
         assert_eq!(rotated.get_pixel(0, 0).unwrap(), &[0]);
     }
 
@@ -653,14 +664,13 @@ mod tests {
             .apply(&img)
             .unwrap();
         let center = rotated.get_pixel(2, 2).unwrap()[0];
-        assert!(center >= 145 && center <= 155);
+        assert!((145..=155).contains(&center));
     }
 
     #[test]
     fn rotate_arbitrary_rgba_preserves_alpha() {
         let pixels = vec![
-            255, 0, 0, 255,    0, 255, 0, 255,
-            0, 0, 255, 255,    255, 255, 0, 255,
+            255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255,
         ];
         let img = SilvestreImage::new(pixels, 2, 2, ColorSpace::Rgba).unwrap();
         let rotated = RotateFilter::new(30.0, 255, [128, 128, 128])

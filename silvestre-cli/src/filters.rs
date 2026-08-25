@@ -79,8 +79,8 @@ pub fn apply_named_filter(
         }
         "contrast" => {
             let factor = parse_f32(params, "Contrast requires a decimal number")?;
-            let filter = ContrastFilter::new(factor)
-                .map_err(|e| format!("Contrast filter error: {}", e))?;
+            let filter =
+                ContrastFilter::new(factor).map_err(|e| format!("Contrast filter error: {}", e))?;
             filter
                 .apply(img)
                 .map_err(|e| format!("Contrast filter error: {}", e))
@@ -133,8 +133,9 @@ pub fn silvestre_to_dynamic(img: &SilvestreImage) -> Result<image::DynamicImage,
     let pixels = img.pixels().to_vec();
 
     let dynamic = match img.color_space() {
-        ColorSpace::Rgba => image::RgbaImage::from_raw(w, h, pixels)
-            .map(image::DynamicImage::ImageRgba8),
+        ColorSpace::Rgba => {
+            image::RgbaImage::from_raw(w, h, pixels).map(image::DynamicImage::ImageRgba8)
+        }
         ColorSpace::Rgb => {
             image::RgbImage::from_raw(w, h, pixels).map(image::DynamicImage::ImageRgb8)
         }

@@ -108,9 +108,8 @@ mod tests {
     #[test]
     fn rgba_to_grayscale_ignores_alpha() {
         // Pure green with varying alpha: 0.587 * 255 = 149.685 -> 150
-        let img =
-            SilvestreImage::new(vec![0, 255, 0, 128, 0, 255, 0, 0], 2, 1, ColorSpace::Rgba)
-                .unwrap();
+        let img = SilvestreImage::new(vec![0, 255, 0, 128, 0, 255, 0, 0], 2, 1, ColorSpace::Rgba)
+            .unwrap();
         let out = to_grayscale(&img).unwrap();
         assert_eq!(out.pixels(), &[150, 150]);
     }

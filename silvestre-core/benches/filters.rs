@@ -1,10 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use silvestre_core::{
     effects::{BrightnessFilter, GrayscaleFilter, InvertFilter},
     filters::Filter,
-    transform::{ResizeFilter, Interpolation, MirrorFilter, MirrorMode},
+    transform::{Interpolation, MirrorFilter, MirrorMode, ResizeFilter},
     ColorSpace, SilvestreImage,
 };
+use std::hint::black_box;
 
 // Helper to create test images of various sizes
 fn create_test_image(width: u32, height: u32, color_space: ColorSpace) -> SilvestreImage {
@@ -78,21 +79,15 @@ fn bench_transforms(c: &mut Criterion) {
 
     // Resize benchmarks
     group.bench_function("resize_nearest_neighbor_100x100_to_50x50", |b| {
-        b.iter(|| {
-            ResizeFilter::new(50, 50, Interpolation::NearestNeighbor).apply(&img_100x100)
-        })
+        b.iter(|| ResizeFilter::new(50, 50, Interpolation::NearestNeighbor).apply(&img_100x100))
     });
 
     group.bench_function("resize_bilinear_100x100_to_200x200", |b| {
-        b.iter(|| {
-            ResizeFilter::new(200, 200, Interpolation::Bilinear).apply(&img_100x100)
-        })
+        b.iter(|| ResizeFilter::new(200, 200, Interpolation::Bilinear).apply(&img_100x100))
     });
 
     group.bench_function("resize_bilinear_512x512_to_256x256", |b| {
-        b.iter(|| {
-            ResizeFilter::new(256, 256, Interpolation::Bilinear).apply(&img_512x512)
-        })
+        b.iter(|| ResizeFilter::new(256, 256, Interpolation::Bilinear).apply(&img_512x512))
     });
 
     group.finish();

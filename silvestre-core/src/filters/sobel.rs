@@ -83,10 +83,7 @@ impl Filter for SobelFilter {
 /// Each buffer has `width * height` elements in row-major order. The input
 /// **must** be a grayscale image with positive dimensions; the caller is
 /// responsible for validating this.
-pub(crate) fn sobel_gradients(
-    image: &SilvestreImage,
-    border: BorderMode,
-) -> (Vec<f32>, Vec<f32>) {
+pub(crate) fn sobel_gradients(image: &SilvestreImage, border: BorderMode) -> (Vec<f32>, Vec<f32>) {
     debug_assert_eq!(image.color_space(), ColorSpace::Grayscale);
     let width = image.width();
     let height = image.height();
@@ -254,7 +251,9 @@ mod tests {
         // With Clamp, all neighbors are 255, so gradients are 0.
         let img = gray_image(3, 3, vec![255; 9]);
         let clamp_out = SobelFilter::new().apply(&img).unwrap();
-        let zero_out = SobelFilter::with_border(BorderMode::Zero).apply(&img).unwrap();
+        let zero_out = SobelFilter::with_border(BorderMode::Zero)
+            .apply(&img)
+            .unwrap();
         assert_ne!(clamp_out.pixels(), zero_out.pixels());
     }
 
@@ -294,7 +293,10 @@ mod tests {
         let img = gray_image(4, 4, pixels);
         let out = SobelFilter::new().apply(&img).unwrap();
         let max = *out.pixels().iter().max().unwrap();
-        assert_eq!(max, 255, "edge pixels at full contrast should be clamped to 255");
+        assert_eq!(
+            max, 255,
+            "edge pixels at full contrast should be clamped to 255"
+        );
     }
 
     #[test]

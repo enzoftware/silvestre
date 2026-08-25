@@ -144,14 +144,18 @@ mod tests {
         //   row 0: 1 2 3
         //   row 1: 4 5 6
         let img = gray(3, 2, vec![1, 2, 3, 4, 5, 6]);
-        let out = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+        let out = MirrorFilter::new(MirrorMode::Horizontal)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.pixels(), &[3, 2, 1, 6, 5, 4]);
     }
 
     #[test]
     fn horizontal_single_column_is_identity() {
         let img = gray(1, 3, vec![10, 20, 30]);
-        let out = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+        let out = MirrorFilter::new(MirrorMode::Horizontal)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.pixels(), &[10, 20, 30]);
     }
 
@@ -222,7 +226,11 @@ mod tests {
         let img = gray(4, 3, pixels);
         let both = MirrorFilter::new(MirrorMode::Both).apply(&img).unwrap();
         let h_then_v = MirrorFilter::new(MirrorMode::Vertical)
-            .apply(&MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap())
+            .apply(
+                &MirrorFilter::new(MirrorMode::Horizontal)
+                    .apply(&img)
+                    .unwrap(),
+            )
             .unwrap();
         assert_eq!(both.pixels(), h_then_v.pixels());
     }
@@ -236,7 +244,9 @@ mod tests {
         // 2×1 RGBA: [R=255,G=0,B=0,A=255] | [R=0,G=255,B=0,A=255]
         let pixels = vec![255, 0, 0, 255, 0, 255, 0, 255];
         let img = SilvestreImage::new(pixels, 2, 1, ColorSpace::Rgba).unwrap();
-        let out = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+        let out = MirrorFilter::new(MirrorMode::Horizontal)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.pixels(), &[0, 255, 0, 255, 255, 0, 0, 255]);
     }
 
@@ -269,7 +279,9 @@ mod tests {
         //   4  5  6    =>    6  5  4
         //   7  8  9          9  8  7
         let img = gray(3, 3, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let out = MirrorFilter::new(MirrorMode::Horizontal).apply(&img).unwrap();
+        let out = MirrorFilter::new(MirrorMode::Horizontal)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.get_pixel(0, 0).unwrap(), &[3]);
         assert_eq!(out.get_pixel(2, 0).unwrap(), &[1]);
         assert_eq!(out.get_pixel(0, 1).unwrap(), &[6]);
@@ -298,7 +310,11 @@ mod tests {
     #[test]
     fn preserves_dimensions_and_color_space() {
         let img = SilvestreImage::new(vec![0; 4 * 3 * 4], 4, 3, ColorSpace::Rgba).unwrap();
-        for mode in [MirrorMode::Horizontal, MirrorMode::Vertical, MirrorMode::Both] {
+        for mode in [
+            MirrorMode::Horizontal,
+            MirrorMode::Vertical,
+            MirrorMode::Both,
+        ] {
             let out = MirrorFilter::new(mode).apply(&img).unwrap();
             assert_eq!(out.width(), 4, "{mode:?}");
             assert_eq!(out.height(), 3, "{mode:?}");
@@ -313,7 +329,11 @@ mod tests {
     #[test]
     fn empty_image_is_preserved() {
         let img = gray(0, 0, vec![]);
-        for mode in [MirrorMode::Horizontal, MirrorMode::Vertical, MirrorMode::Both] {
+        for mode in [
+            MirrorMode::Horizontal,
+            MirrorMode::Vertical,
+            MirrorMode::Both,
+        ] {
             let out = MirrorFilter::new(mode).apply(&img).unwrap();
             assert_eq!(out.width(), 0, "{mode:?}");
             assert_eq!(out.height(), 0, "{mode:?}");
@@ -324,7 +344,11 @@ mod tests {
     #[test]
     fn single_pixel_is_identity() {
         let img = gray(1, 1, vec![42]);
-        for mode in [MirrorMode::Horizontal, MirrorMode::Vertical, MirrorMode::Both] {
+        for mode in [
+            MirrorMode::Horizontal,
+            MirrorMode::Vertical,
+            MirrorMode::Both,
+        ] {
             let out = MirrorFilter::new(mode).apply(&img).unwrap();
             assert_eq!(out.pixels(), &[42], "{mode:?}");
         }
@@ -333,7 +357,11 @@ mod tests {
     #[test]
     fn uniform_image_unchanged_by_any_mode() {
         let img = gray(4, 4, vec![128; 16]);
-        for mode in [MirrorMode::Horizontal, MirrorMode::Vertical, MirrorMode::Both] {
+        for mode in [
+            MirrorMode::Horizontal,
+            MirrorMode::Vertical,
+            MirrorMode::Both,
+        ] {
             let out = MirrorFilter::new(mode).apply(&img).unwrap();
             assert!(out.pixels().iter().all(|&v| v == 128), "{mode:?}");
         }

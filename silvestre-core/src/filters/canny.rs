@@ -121,9 +121,7 @@ impl Filter for CannyFilter {
         let mut magnitude = vec![0.0_f32; len];
         let mut direction = vec![0.0_f32; len];
         for i in 0..len {
-            magnitude[i] = (gx[i] * gx[i] + gy[i] * gy[i])
-                .sqrt()
-                .clamp(0.0, 255.0);
+            magnitude[i] = (gx[i] * gx[i] + gy[i] * gy[i]).sqrt().clamp(0.0, 255.0);
             direction[i] = gy[i].atan2(gx[i]);
         }
 
@@ -173,7 +171,7 @@ fn normalize_angle(angle: f32) -> u8 {
     let a = if angle < 0.0 { angle + PI } else { angle };
     // Quantize: 0°=[0,22.5)∪[157.5,180), 45°=[22.5,67.5), 90°=[67.5,112.5), 135°=[112.5,157.5)
     let deg = a * 180.0 / PI;
-    if deg < 22.5 || deg >= 157.5 {
+    if !(22.5..157.5).contains(&deg) {
         0 // horizontal gradient -> compare left/right neighbors
     } else if deg < 67.5 {
         45
@@ -211,13 +209,7 @@ fn gradient_neighbors(angle: u8, x: usize, y: usize, width: usize) -> (usize, us
 /// Pixels above `high` are definite edges (255). Pixels below `low` are
 /// suppressed (0). Pixels between `low` and `high` are kept only if they
 /// are connected (8-connected) to a definite edge.
-fn hysteresis(
-    suppressed: &[f32],
-    width: usize,
-    height: usize,
-    low: f32,
-    high: f32,
-) -> Vec<u8> {
+fn hysteresis(suppressed: &[f32], width: usize, height: usize, low: f32, high: f32) -> Vec<u8> {
     let len = width * height;
     // 0 = suppressed, 1 = weak, 2 = strong
     let mut marker = vec![0u8; len];
@@ -260,7 +252,10 @@ fn hysteresis(
     }
 
     // Output: strong (promoted or original) = 255, everything else = 0.
-    marker.iter().map(|&m| if m == 2 { 255 } else { 0 }).collect()
+    marker
+        .iter()
+        .map(|&m| if m == 2 { 255 } else { 0 })
+        .collect()
 }
 
 #[cfg(test)]
@@ -365,7 +360,7 @@ mod tests {
         );
         // Exterior (well outside) should also be 0.
         assert_eq!(
-            out.pixels()[1 * 20 + 1],
+            out.pixels()[20 + 1],
             0,
             "exterior pixel should not be an edge"
         );
@@ -385,7 +380,9 @@ mod tests {
 
     #[test]
     fn accepts_rgba_input() {
-        let pixels = vec![255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 128, 128, 128, 255];
+        let pixels = vec![
+            255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 128, 128, 128, 255,
+        ];
         let img = SilvestreImage::new(pixels, 2, 2, ColorSpace::Rgba).unwrap();
         let canny = CannyFilter::new(20.0, 80.0, 1.0).unwrap();
         let out = canny.apply(&img).unwrap();
@@ -437,11 +434,8 @@ mod tests {
         // Manually test hysteresis: a strong pixel adjacent to weak pixels
         // should promote the weak ones.
         let suppressed = vec![
-            0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 40.0, 0.0, 0.0,
-            0.0, 40.0, 120.0, 40.0, 0.0,
-            0.0, 0.0, 40.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 40.0, 0.0, 0.0, 0.0, 40.0, 120.0, 40.0, 0.0, 0.0,
+            0.0, 40.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ];
         let result = hysteresis(&suppressed, 5, 5, 30.0, 100.0);
         // Center (2,2) is strong (120 >= 100) -> 255.
@@ -451,7 +445,7 @@ mod tests {
         assert_eq!(result[11], 255); // (1,2)
         assert_eq!(result[13], 255); // (3,2)
         assert_eq!(result[17], 255); // (2,3)
-        // Far corners are 0.
+                                     // Far corners are 0.
         assert_eq!(result[0], 0);
         assert_eq!(result[24], 0);
     }
@@ -459,13 +453,12 @@ mod tests {
     #[test]
     fn weak_without_strong_neighbor_suppressed() {
         // All pixels are in the weak range but none are strong -> all suppressed.
-        let suppressed = vec![
-            0.0, 0.0, 0.0,
-            0.0, 60.0, 0.0,
-            0.0, 0.0, 0.0,
-        ];
+        let suppressed = vec![0.0, 0.0, 0.0, 0.0, 60.0, 0.0, 0.0, 0.0, 0.0];
         let result = hysteresis(&suppressed, 3, 3, 30.0, 100.0);
-        assert!(result.iter().all(|&v| v == 0), "isolated weak pixel should be suppressed");
+        assert!(
+            result.iter().all(|&v| v == 0),
+            "isolated weak pixel should be suppressed"
+        );
     }
 
     #[test]

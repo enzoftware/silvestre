@@ -1,5 +1,7 @@
 # Silvestre
 
+[![CI](https://github.com/enzoftware/silvestre/actions/workflows/ci.yml/badge.svg)](https://github.com/enzoftware/silvestre/actions/workflows/ci.yml)
+
 Cross-platform image processing library written in Rust.
 
 Run the same filters natively on the **CLI**, on **Android** and **iOS** via

@@ -1,0 +1,13 @@
+# Root analyzer config for the repository.
+#
+# Cargokit copies a stripped-down `build_tool` package into
+# silvestre_flutter/example/build/ during Android builds. That copy has a
+# pubspec.yaml but no analysis_options.yaml of its own, so the IDE analyzer
+# walks up and applies the example app's very_good_analysis rules to generated
+# code (surfacing lints like `discarded_futures`). Excluding build output here
+# keeps those files out of the IDE Problems panel.
+#
+# Note: `flutter analyze lib test` in CI is already scoped and unaffected.
+analyzer:
+  exclude:
+    - "**/build/**"

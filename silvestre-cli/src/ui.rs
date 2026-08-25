@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, List, ListItem},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -25,62 +25,109 @@ fn draw_main(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
-        .constraints([Constraint::Length(15), Constraint::Min(3), Constraint::Length(2)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(15),
+                Constraint::Min(3),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
         .split(f.area());
 
     // Title and welcome
     let title = vec![
+        Line::from(vec![Span::styled(
+            "╔════════════════════════════════════════╗",
+            Style::default().fg(Color::Cyan),
+        )]),
         Line::from(vec![
-            Span::styled("╔════════════════════════════════════════╗", Style::default().fg(Color::Cyan)),
+            Span::styled("║", Style::default().fg(Color::Cyan)),
+            Span::styled(
+                " 🐱 SILVESTRE - Image Processing CLI 🐱 ",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("║", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::styled("║", Style::default().fg(Color::Cyan)),
-            Span::styled(" 🐱 SILVESTRE - Image Processing CLI 🐱 ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " (Named after my magnificent cat!)         ",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::ITALIC),
+            ),
             Span::styled("║", Style::default().fg(Color::Cyan)),
         ]),
-        Line::from(vec![
-            Span::styled("║", Style::default().fg(Color::Cyan)),
-            Span::styled(" (Named after my magnificent cat!)         ", Style::default().fg(Color::Magenta).add_modifier(Modifier::ITALIC)),
-            Span::styled("║", Style::default().fg(Color::Cyan)),
-        ]),
-        Line::from(vec![
-            Span::styled("╚════════════════════════════════════════╝", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(vec![Span::styled(
+            "╚════════════════════════════════════════╝",
+            Style::default().fg(Color::Cyan),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Welcome, fellow feline admirer! 🐾", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Welcome, fellow feline admirer! 🐾",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )]),
     ];
 
     let menu = vec![
         Line::from(""),
         Line::from(vec![
             Span::raw("Press "),
-            Span::styled("f", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "f",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" to apply a "),
             Span::styled("filter", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
-            Span::styled("p", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "p",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" to build a filter "),
             Span::styled("pipeline", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
-            Span::styled("i", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "i",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" to inspect an "),
             Span::styled("image", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
-            Span::styled("h", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "h",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" for "),
             Span::styled("help", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::raw("Press "),
-            Span::styled("q", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "q",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" to "),
             Span::styled("quit", Style::default().fg(Color::Red)),
         ]),
@@ -310,7 +357,9 @@ fn draw_pipeline(f: &mut Frame, app: &App) {
                 if fi.params.is_empty() {
                     Span::styled(
                         format!("  {}", fi.hint),
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
                     )
                 } else {
                     Span::styled(
@@ -326,12 +375,16 @@ fn draw_pipeline(f: &mut Frame, app: &App) {
             };
 
             let name_style = if fi.enabled {
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Gray)
             };
             let check_style = if fi.enabled {
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -425,7 +478,14 @@ fn draw_info(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
-        .constraints([Constraint::Length(5), Constraint::Min(10), Constraint::Length(2)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(5),
+                Constraint::Min(10),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
         .split(f.area());
 
     // Input
@@ -472,13 +532,19 @@ fn draw_help(f: &mut Frame, app: &App) {
         .split(f.area());
 
     let help_text = vec![
-        Line::from(vec![
-            Span::styled("SILVESTRE - Image Processing CLI", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "SILVESTRE - Image Processing CLI",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("FILTERS", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "FILTERS",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  Brightness   - Adjust image brightness (requires delta parameter)"),
         Line::from("  Contrast     - Adjust image contrast (requires factor parameter)"),
         Line::from("  Grayscale    - Convert image to grayscale"),
@@ -488,26 +554,33 @@ fn draw_help(f: &mut Frame, app: &App) {
         Line::from("  Resize       - Change image dimensions (width, height)"),
         Line::from("  Rotate       - Rotate image by specified angle"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("PIPELINE 🐾", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "PIPELINE 🐾",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  Press 'p' to chain multiple filters in one run."),
         Line::from("  Check the filters you want with Space and type any params"),
         Line::from("  next to them. Enabled filters run top→bottom, feeding each"),
         Line::from("  output into the next. Ctrl+R runs, Ctrl+X clears all."),
         Line::from("  A bad step reports which step number failed."),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("TIPS FROM SILVESTRE 🐱", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "TIPS FROM SILVESTRE 🐱",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  • Use Tab to navigate fields when applying filters"),
         Line::from("  • Press Esc to go back to the previous screen"),
         Line::from("  • The status bar shows helpful information"),
         Line::from("  • All operations are non-destructive on the original file"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Press Esc to return to main menu", Style::default().fg(Color::Green)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Press Esc to return to main menu",
+            Style::default().fg(Color::Green),
+        )]),
     ];
 
     let help_block = Block::default()
@@ -533,9 +606,12 @@ fn draw_processing(f: &mut Frame, _app: &App) {
 
     let processing_text = vec![
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Processing Image...", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Processing Image...",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
         Line::from("🐱 Silvestre is concentrating very hard... 😺"),
         Line::from(""),
