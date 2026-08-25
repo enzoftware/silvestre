@@ -1,0 +1,53 @@
+name: Release Rust Core Crate
+
+on:
+  push:
+    tags:
+      - 'core-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not publish to crates.io or create release)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release silvestre-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: core-release
+
+      - name: Run unit & integration tests
+        run: cargo test -p silvestre-core --verbose
+
+      - name: Run doc tests
+        run: cargo test -p silvestre-core --doc --verbose
+
+      - name: Verify package packaging (dry-run)
+        run: cargo publish -p silvestre-core --dry-run
+
+      - name: Publish to crates.io
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/core-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        run: cargo publish -p silvestre-core --token ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/core-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            silvestre-core/README.md
+            LICENSE

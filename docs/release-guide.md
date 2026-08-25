@@ -61,7 +61,40 @@ Because Silvestre produces multiple distinct deliverables across different packa
 
 ---
 
-## 3. WebAssembly Release Process (`silvestre-wasm`)
+## 3. Rust Core Release Process (`silvestre-core`)
+
+### Step-by-Step Guide:
+
+1. **Update Version:**
+   In `Cargo.toml` (workspace or `silvestre-core/Cargo.toml`), set the version:
+   ```toml
+   [workspace.package]
+   version = "0.1.0"
+   ```
+
+2. **Verify Tests & Package Locally:**
+   ```bash
+   cargo test -p silvestre-core
+   cargo test -p silvestre-core --doc
+   cargo publish -p silvestre-core --dry-run
+   ```
+
+3. **Commit & Tag:**
+   ```bash
+   git commit -am "chore(core): bump version to 0.1.0"
+   git tag core-v0.1.0
+   git push origin main --tags
+   ```
+
+4. **Automated CI/CD Execution:**
+   - GitHub Actions (`.github/workflows/release-core.yml`) triggers on `core-v*`.
+   - Runs unit tests and doctests.
+   - Publishes to crates.io using `CRATES_IO_TOKEN`.
+   - Creates a GitHub Release with release notes.
+
+---
+
+## 4. WebAssembly Release Process (`silvestre-wasm`)
 
 ### Step-by-Step Guide:
 
@@ -90,7 +123,7 @@ Because Silvestre produces multiple distinct deliverables across different packa
 
 ---
 
-## 4. Automation Matrix & Best Practices
+## 5. Automation Matrix & Best Practices
 
 1. **Independent Release Lifecycles:**
    - Changes to the Flutter example app or Flutter-specific Dart wrappers do not force version bumps in `silvestre-core`.
