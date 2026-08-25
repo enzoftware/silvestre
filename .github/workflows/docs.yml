@@ -1,0 +1,48 @@
+name: Documentation & Quality Automation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '**/*.md'
+      - 'silvestre-core/src/**'
+      - 'silvestre-cli/src/**'
+      - 'silvestre-ffi/src/**'
+      - 'silvestre-wasm/src/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '**/*.md'
+      - 'silvestre-core/src/**'
+      - 'silvestre-cli/src/**'
+      - 'silvestre-ffi/src/**'
+      - 'silvestre-wasm/src/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-docs:
+    name: Validate Documentation & Doc-Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: docs-validation
+
+      - name: Verify Executable Doc-Tests
+        run: cargo test --workspace --doc --verbose
+
+      - name: Build Rustdoc Documentation
+        run: cargo doc --workspace --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings"
