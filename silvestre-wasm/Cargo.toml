@@ -4,7 +4,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "WebAssembly bindings for the silvestre image processing library"
+homepage = "https://github.com/enzoftware/silvestre"
+documentation = "https://github.com/enzoftware/silvestre/tree/main/silvestre-wasm"
+readme = "README.md"
+description = "High-performance WebAssembly image processing library powered by Rust."
+keywords = ["image-processing", "wasm", "webassembly", "filters", "rust"]
+categories = ["multimedia::images", "wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

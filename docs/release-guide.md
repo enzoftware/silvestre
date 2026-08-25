@@ -13,7 +13,7 @@ Because Silvestre produces multiple distinct deliverables across different packa
 | **Flutter Plugin** | `flutter-v<major>.<minor>.<patch>` | `flutter-v0.1.0` | [pub.dev](https://pub.dev/packages/silvestre_flutter) |
 | **Rust Core** | `core-v<major>.<minor>.<patch>` | `core-v0.1.0` | [crates.io](https://crates.io/crates/silvestre-core) |
 | **CLI Binary** | `cli-v<major>.<minor>.<patch>` | `cli-v0.1.0` | GitHub Release Binaries (Linux, macOS, Windows) |
-| **WebAssembly** | `wasm-v<major>.<minor>.<patch>` | `wasm-v0.1.0` | npm package (`@silvestre/wasm`) |
+| **WebAssembly** | `wasm-v<major>.<minor>.<patch>` | `wasm-v0.1.0` | npm package (`silvestre-wasm`) |
 | **C FFI Layer** | `ffi-v<major>.<minor>.<patch>` | `ffi-v0.1.0` | GitHub Release C Header & Shared Libs |
 
 ---
@@ -61,7 +61,36 @@ Because Silvestre produces multiple distinct deliverables across different packa
 
 ---
 
-## 3. Automation Matrix & Best Practices
+## 3. WebAssembly Release Process (`silvestre-wasm`)
+
+### Step-by-Step Guide:
+
+1. **Update Version:**
+   In `Cargo.toml` (workspace or `silvestre-wasm/Cargo.toml`), ensure the version matches the intended release.
+
+2. **Verify Bundler Build & Package Locally:**
+   ```bash
+   cd silvestre-wasm
+   wasm-pack build --target bundler --out-dir pkg
+   cd pkg && npm publish --dry-run
+   ```
+
+3. **Commit & Tag:**
+   ```bash
+   git commit -am "chore(wasm): bump version to 0.1.0"
+   git tag wasm-v0.1.0
+   git push origin main --tags
+   ```
+
+4. **Automated CI/CD Execution:**
+   - GitHub Actions (`.github/workflows/release-wasm.yml`) triggers on `wasm-v*`.
+   - Builds the bundler package with `wasm-pack`.
+   - Publishes to npm using `NPM_TOKEN`.
+   - Creates a GitHub Release with release notes.
+
+---
+
+## 4. Automation Matrix & Best Practices
 
 1. **Independent Release Lifecycles:**
    - Changes to the Flutter example app or Flutter-specific Dart wrappers do not force version bumps in `silvestre-core`.

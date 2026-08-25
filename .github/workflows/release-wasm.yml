@@ -1,0 +1,67 @@
+name: Release WebAssembly Package
+
+on:
+  push:
+    tags:
+      - 'wasm-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not publish to npm or create release)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Build & Release silvestre-wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm-release
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Build WebAssembly bundler package
+        working-directory: silvestre-wasm
+        run: wasm-pack build --target bundler --out-dir pkg
+
+      - name: Verify npm package (dry-run)
+        working-directory: silvestre-wasm/pkg
+        run: npm publish --dry-run
+
+      - name: Publish to npm
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/wasm-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        working-directory: silvestre-wasm/pkg
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/wasm-v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            silvestre-wasm/README.md
+            LICENSE

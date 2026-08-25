@@ -1,138 +1,176 @@
 # silvestre-wasm
 
-WebAssembly bindings for the [silvestre](https://github.com/enzoftware/silvestre) image processing library, powered by `wasm-bindgen`.
+[![npm version](https://img.shields.io/npm/v/silvestre-wasm.svg)](https://www.npmjs.com/package/silvestre-wasm)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Load images, apply filters, and render results — all in the browser with no server round-trips.
+High-performance WebAssembly bindings for the [silvestre](https://github.com/enzoftware/silvestre) image processing engine, powered by Rust and `wasm-bindgen`.
 
-## Prerequisites
+Load images, apply convolution filters, color effects, and transformations directly in the browser with zero server roundtrips at near-native speed.
 
-- [Rust](https://rustup.rs/) with the `wasm32-unknown-unknown` target
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) (`cargo install wasm-pack`)
-- [Node.js](https://nodejs.org/) (for the demo app)
+---
 
-## Build
+## Installation
 
 ```bash
-# From the silvestre-wasm directory:
-wasm-pack build --target web --out-dir pkg
+# Using npm
+npm install silvestre-wasm
+
+# Using yarn
+yarn add silvestre-wasm
+
+# Using pnpm
+pnpm add silvestre-wasm
 ```
 
-This produces a `pkg/` directory with the `.wasm` binary, JS glue code, and TypeScript declarations.
+---
 
-## Usage
+## Bundler Integration
 
-### Initialize the WASM module
+### 1. Vite
+Install `vite-plugin-wasm` and `vite-plugin-top-level-await`:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import wasm from 'vite-plugin-wasm';
+import topLevelAwait from 'vite-plugin-top-level-await';
+
+export default defineConfig({
+  plugins: [wasm(), topLevelAwait()],
+});
+```
+
+### 2. Webpack 5
+Enable WebAssembly experiments in your `webpack.config.js`:
+
+```js
+// webpack.config.js
+module.exports = {
+  experiments: {
+    asyncWebAssembly: true,
+    topLevelAwait: true,
+  },
+};
+```
+
+### 3. Next.js (App / Pages Router)
+Enable async WebAssembly in `next.config.js`:
+
+```js
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config) => {
+    config.experiments = { ...config.experiments, asyncWebAssembly: true };
+    return config;
+  },
+};
+
+module.exports = nextConfig;
+```
+
+---
+
+## Usage Guide
+
+### 1. Initialize the Module & Load Images
 
 ```ts
 import init, { WasmImage } from "silvestre-wasm";
 
-await init(); // must be called once before using WasmImage
-```
+// Initialize WASM binary once at application startup
+await init();
 
-### Load an image
-
-```ts
-// From file bytes (e.g. from a fetch or file input)
+// Option A: Load from ArrayBuffer / Uint8Array (fetch or file input)
 const response = await fetch("/photo.png");
-const bytes = new Uint8Array(await response.arrayBuffer());
-const image = WasmImage.loadFromBytes(bytes);
+const fileBytes = new Uint8Array(await response.arrayBuffer());
+const image = WasmImage.loadFromBytes(fileBytes);
 
-// From canvas ImageData
-const canvas = document.querySelector("canvas");
-const ctx = canvas.getContext("2d");
+// Option B: Load directly from HTML5 Canvas ImageData
+const canvas = document.querySelector<HTMLCanvasElement>("#myCanvas")!;
+const ctx = canvas.getContext("2d")!;
 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-const image = WasmImage.loadFromImageData(imageData);
+const imageFromCanvas = WasmImage.loadFromImageData(imageData);
 ```
 
-### Apply filters
+### 2. Apply Filters & Transforms
+
+Every operation returns a **new** `WasmImage` instance, allowing clean chaining without mutating the source image:
 
 ```ts
-// No-param filters
-const gray = image.applyFilter("grayscale", {});
+// 1. Effects
+const grayscale = image.applyFilter("grayscale", {});
+const sepia = image.applyFilter("sepia", {});
+const invert = image.applyFilter("invert", {});
+const bright = image.applyFilter("brightness", { delta: 40 });
+const contrasted = image.applyFilter("contrast", { factor: 1.25 });
 
-// Filters with parameters
-const bright = image.applyFilter("brightness", { delta: 50 });
-const blurred = image.applyFilter("gaussian", { sigma: 2.0 });
-const edges = image.applyFilter("canny", { low: 50, high: 100, sigma: 1.4 });
+// 2. Convolution Filters
+const blurred = image.applyFilter("gaussian", { sigma: 2.5 });
+const sharp = image.applyFilter("sharpen", {});
+const median = image.applyFilter("median", { size: 3 });
+const edges = image.applyFilter("canny", { low: 50, high: 150, sigma: 1.4 });
+const sobel = image.applyFilter("sobel", {});
 
-// Transforms
+// 3. Transformations
 const resized = image.applyFilter("resize", { w: 800, h: 600 });
-const rotated = image.applyFilter("rotate", { angle: 90 });
-const mirrored = image.applyFilter("mirror", { mode: "horizontal" });
-const cropped = image.applyFilter("crop", { x: 10, y: 10, w: 200, h: 200 });
+const rotated = image.applyFilter("rotate", { angle: 45 });
+const flipped = image.applyFilter("mirror", { mode: "horizontal" });
+const cropped = image.applyFilter("crop", { x: 50, y: 50, w: 400, h: 400 });
 
-// Chain filters (each returns a new WasmImage)
+// 4. Chaining Pipelines
 const result = image
-  .applyFilter("brightness", { delta: 20 })
-  .applyFilter("contrast", { factor: 1.3 })
-  .applyFilter("sharpen", {});
+  .applyFilter("gaussian", { sigma: 1.0 })
+  .applyFilter("brightness", { delta: 15 })
+  .applyFilter("contrast", { factor: 1.2 });
 ```
 
-### Render to canvas
+### 3. Rendering to Canvas & Exporting
 
 ```ts
-const imageData = image.toImageData();
-const canvas = document.querySelector("canvas");
-canvas.width = imageData.width;
-canvas.height = imageData.height;
-canvas.getContext("2d").putImageData(imageData, 0, 0);
+// Render to HTML5 Canvas
+const outImageData = result.toImageData();
+canvas.width = outImageData.width;
+canvas.height = outImageData.height;
+ctx.putImageData(outImageData, 0, 0);
+
+// Export encoded image bytes
+const pngBlob = new Blob([result.toBytes("png")], { type: "image/png" });
+const jpegBlob = new Blob([result.toBytes("jpeg")], { type: "image/jpeg" });
 ```
 
-### Export
-
-```ts
-const pngBytes = image.toBytes("png");   // Uint8Array
-const jpgBytes = image.toBytes("jpeg");
-const bmpBytes = image.toBytes("bmp");
-```
+---
 
 ## API Reference
 
-### `WasmImage`
+### `WasmImage` Class
 
-| Method / Property | Description |
-|---|---|
-| `WasmImage.loadFromBytes(data: Uint8Array)` | Load from PNG/JPEG/BMP bytes |
-| `WasmImage.loadFromImageData(data: ImageData)` | Load from canvas ImageData |
-| `image.applyFilter(name: string, params: object)` | Apply a filter, returns new WasmImage |
-| `image.toImageData()` | Convert to RGBA ImageData |
-| `image.toBytes(format: string)` | Encode to "png", "jpeg", or "bmp" |
-| `image.width` | Image width in pixels |
-| `image.height` | Image height in pixels |
+| Method | Parameters | Returns | Description |
+|---|---|---|---|
+| `WasmImage.loadFromBytes(data)` | `data: Uint8Array` | `WasmImage` | Decodes PNG, JPEG, or BMP binary bytes into a WASM image buffer. |
+| `WasmImage.loadFromImageData(data)` | `data: ImageData` | `WasmImage` | Constructs an image directly from raw RGBA canvas pixels. |
+| `image.applyFilter(name, params)` | `name: string, params: object` | `WasmImage` | Applies an image operation and returns a newly allocated image. |
+| `image.toImageData()` | — | `ImageData` | Returns browser-compatible RGBA `ImageData`. |
+| `image.toBytes(format)` | `format: "png" \| "jpeg" \| "bmp"` | `Uint8Array` | Encodes the image into the specified compressed file format. |
+| `image.width` | — | `number` | Width of the image in pixels. |
+| `image.height` | — | `number` | Height of the image in pixels. |
 
-### Available Filters
+---
 
-| Filter | Params | Category |
-|---|---|---|
-| `grayscale` | — | Effects |
-| `invert` | — | Effects |
-| `sepia` | — | Effects |
-| `brightness` | `delta: i32` | Effects |
-| `contrast` | `factor: f32` | Effects |
-| `sharpen` | — | Filters |
-| `box_blur` | — | Filters |
-| `sobel` | — | Filters |
-| `gaussian` | `sigma: f32` | Filters |
-| `median` | `size: usize` (odd) | Filters |
-| `canny` | `low: f32`, `high: f32`, `sigma: f32` | Filters |
-| `resize` | `w: u32`, `h: u32` | Transforms |
-| `rotate` | `angle: f64` (degrees) | Transforms |
-| `mirror` | `mode: "horizontal"\|"vertical"\|"both"` | Transforms |
-| `crop` | `x: u32`, `y: u32`, `w: u32`, `h: u32` | Transforms |
+## Building from Source
 
-## Demo App
-
-An interactive demo built with Vite + React + TypeScript + shadcn/ui is included in `www/`.
+To compile the WebAssembly package locally:
 
 ```bash
-cd www
-npm install
-npm run dev
+# Build for npm bundlers (Webpack, Vite, Rollup)
+wasm-pack build --target bundler --out-dir pkg
+
+# Build for direct browser ES Module usage (without bundler)
+wasm-pack build --target web --out-dir pkg-web
 ```
 
-Features:
-- Drag & drop image upload (PNG, JPEG, BMP)
-- Side-by-side original/result comparison
-- All 15 filters with interactive parameter controls
-- Loading states during WASM initialization and filter processing
-- Download processed images as PNG
+---
+
+## License
+
+MIT © [Enzo Lizama Paredes](https://github.com/enzoftware)
