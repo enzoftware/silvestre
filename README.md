@@ -49,13 +49,26 @@ layer over it:
 
 ```text
 silvestre/
-├── silvestre-core/     # Pure Rust image processing library
-├── silvestre-ffi/      # C ABI foreign function interface (cbindgen header)
-├── silvestre-cli/      # Interactive terminal UI (ratatui)
-├── silvestre-wasm/     # WebAssembly bindings (wasm-bindgen) + web demo
-├── silvestre_flutter/  # Flutter plugin via flutter_rust_bridge + example app
-└── tests/fixtures/     # Test images
+├── silvestre-core/      # Pure Rust image processing library
+├── silvestre-ffi/       # C ABI foreign function interface (cbindgen header)
+├── silvestre-cli/       # Interactive terminal UI (ratatui)
+├── silvestre-wasm/      # WebAssembly bindings (wasm-bindgen) + web demo
+├── silvestre_flutter/   # Flutter plugin via flutter_rust_bridge + example app
+├── docs/                # Architecture docs, roadmap, and Superpowers specs/plans
+│   ├── architecture/    # Deep-dive system architecture documentation
+│   ├── roadmap.md       # Milestone tracker & upcoming roadmap
+│   └── superpowers/     # Design specifications (specs/) & implementation plans (plans/)
+├── AGENTS.md            # Universal contributor & agent guidance
+└── tests/fixtures/      # Test images
 ```
+
+## Documentation
+
+- **[Architecture Overview](docs/architecture/overview.md)** — Detailed multi-target topology, convolution engine, memory models, and crate interactions.
+- **[Roadmap & Milestone Tracker](docs/roadmap.md)** — Completed phases (PRs #41–#65) and upcoming features (GPU compute, tiled streaming, WASM plugins).
+- **[Superpowers Specifications](docs/superpowers/specs/)** — Design specs for all milestones and subsystem features.
+- **[Superpowers Implementation Plans](docs/superpowers/plans/)** — Step-by-step TDD implementation plans.
+- **[Agent Guidelines](AGENTS.md)** — Development standards, commit conventions, and testing commands.
 
 ## Quick start
 
