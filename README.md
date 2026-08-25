@@ -140,14 +140,15 @@ follow the on-screen hints to load an image and export the result.
 
 ### 3. WebAssembly (`silvestre-wasm`)
 
-Build the WASM package:
+Available on npm as [`silvestre-wasm`](https://www.npmjs.com/package/silvestre-wasm):
 
 ```bash
-cd silvestre-wasm
-wasm-pack build --target web --out-dir pkg
+npm install silvestre-wasm
+# or build locally with wasm-pack:
+cd silvestre-wasm && wasm-pack build --target bundler --out-dir pkg
 ```
 
-Then use it from JavaScript/TypeScript in the browser:
+Use it from JavaScript or TypeScript with modern bundlers (Vite, Webpack 5, Next.js):
 
 ```ts
 import init, { WasmImage } from "silvestre-wasm";
@@ -176,15 +177,19 @@ const png = result.toBytes("png"); // Uint8Array
 ```
 
 A complete Vite demo lives in [`silvestre-wasm/www`](silvestre-wasm/www). See the
-[crate README](silvestre-wasm/README.md) for the full JS API.
+[crate README](silvestre-wasm/README.md) for the full JS API and bundler configs.
 
 ---
 
 ### 4. Flutter (`silvestre_flutter`)
 
-Add the plugin to your `pubspec.yaml`, then call `Silvestre.init()` once before
-using the API. Every operation runs in Rust on a background isolate, so the
-async Dart API keeps the UI responsive:
+Available on pub.dev as [`silvestre_flutter`](https://pub.dev/packages/silvestre_flutter):
+
+```bash
+flutter pub add silvestre_flutter
+```
+
+Call `Silvestre.init()` once before using the API. Every operation runs in Rust on a background isolate, so the async Dart API keeps the UI responsive:
 
 ```dart
 import 'package:flutter/widgets.dart';
