@@ -82,14 +82,16 @@ This document tracks completed milestones, current progress, and the forward-loo
 
 ---
 
-### Phase 6: Documentation, Quality Gates & CI Automation
+### Phase 6: Documentation, Quality Gates, Releases & Performance
 **Status:** Completed  
-**Associated Pull Requests:** #64, #65
+**Associated Pull Requests:** #64, #65, #67, #68, #69, #70
 
 - [x] Comprehensive crate documentation (`cargo doc`) and per-platform READMEs (#64)
 - [x] GitHub Actions CI matrix building and validating Linux, macOS, and Windows targets (#65)
 - [x] Automated testing for Rust workspace, WebAssembly (`wasm-pack test`), and Flutter (`flutter test`) (#65)
 - [x] Clippy and rustfmt quality gates in CI (#65)
+- [x] Multi-platform release automation for pub.dev (`silvestre_flutter`), npm (`silvestre-wasm`), and crates.io (`silvestre-core`) (#67, #68, #69)
+- [x] Hardware SIMD acceleration (NEON, AVX2/SSE2, WASM SIMD128) for hot filter paths (#39)
 
 ---
 
@@ -102,4 +104,3 @@ This document tracks completed milestones, current progress, and the forward-loo
 | **WASM Plugin System** | Allow users to load custom filter kernels written in WebAssembly at runtime. | Low |
 | **Video Frame Processing** | Extend pipeline mechanisms to process streaming video frames in real time. | Low |
 | **Python Bindings (`silvestre-py`)** | Expose high-performance Rust core to NumPy and PyTorch ecosystems via `PyO3`. | Medium |
-| **SIMD Optimization** | Vectorize convolution and color matrix operations using portable SIMD. | High |

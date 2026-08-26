@@ -5,12 +5,12 @@
 //! channel values are clamped to `0..=255`.
 
 use crate::filters::Filter;
-use crate::{ColorSpace, Result, SilvestreImage};
+use crate::{Result, SilvestreImage};
 
 /// Brightness adjustment filter.
 ///
 /// Adds `delta` to every colour channel of each pixel, leaving the alpha
-/// channel (for [`ColorSpace::Rgba`]) unchanged. Values are clamped to
+/// channel (for [`crate::ColorSpace::Rgba`]) unchanged. Values are clamped to
 /// `0..=255`—there is no wraparound.
 ///
 /// # Examples
@@ -50,20 +50,15 @@ impl BrightnessFilter {
 impl Filter for BrightnessFilter {
     fn apply(&self, image: &SilvestreImage) -> Result<SilvestreImage> {
         let cs = image.color_space();
-        let channels = cs.channels();
-        // For RGBA images the alpha channel (index 3 per pixel) is preserved.
-        let colour_channels = if cs == ColorSpace::Rgba { 3 } else { channels };
-
         let src = image.pixels();
-        let mut dst = src.to_vec();
+        let mut dst = vec![0u8; src.len()];
 
-        let pixel_count = (image.width() as usize) * (image.height() as usize);
-        for i in 0..pixel_count {
-            let offset = i * channels;
-            for c in 0..colour_channels {
-                let v = i32::from(src[offset + c]) + self.delta;
-                dst[offset + c] = v.clamp(0, 255) as u8;
-            }
+        if self.delta >= 0 {
+            let delta = self.delta.min(255) as u8;
+            crate::simd::brightness_add(src, &mut dst, delta, cs.channels());
+        } else {
+            let delta = (-self.delta).min(255) as u8;
+            crate::simd::brightness_sub(src, &mut dst, delta, cs.channels());
         }
 
         SilvestreImage::new(dst, image.width(), image.height(), cs)
@@ -73,6 +68,7 @@ impl Filter for BrightnessFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ColorSpace;
 
     fn img(pixels: Vec<u8>, w: u32, h: u32, cs: ColorSpace) -> SilvestreImage {
         SilvestreImage::new(pixels, w, h, cs).unwrap()

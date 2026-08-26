@@ -41,17 +41,13 @@ pub fn to_grayscale(image: &SilvestreImage) -> Result<SilvestreImage> {
     }
 
     let src = image.pixels();
-    let channels = image.color_space().channels();
     let pixel_count = (width as usize) * (height as usize);
-    let mut dst = Vec::with_capacity(pixel_count);
+    let mut dst = vec![0u8; pixel_count];
 
-    for i in 0..pixel_count {
-        let offset = i * channels;
-        let r = f32::from(src[offset]);
-        let g = f32::from(src[offset + 1]);
-        let b = f32::from(src[offset + 2]);
-        let lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        dst.push(lum.round().clamp(0.0, 255.0) as u8);
+    match image.color_space() {
+        ColorSpace::Rgb => crate::simd::grayscale_rgb(src, &mut dst),
+        ColorSpace::Rgba => crate::simd::grayscale_rgba(src, &mut dst),
+        ColorSpace::Grayscale => unreachable!(),
     }
 
     SilvestreImage::new(dst, width, height, ColorSpace::Grayscale)

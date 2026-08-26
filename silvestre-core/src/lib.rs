@@ -44,6 +44,7 @@
 pub mod analysis;
 pub mod effects;
 pub mod filters;
+pub mod simd;
 pub mod transform;
 
 mod error;
