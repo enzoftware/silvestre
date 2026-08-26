@@ -93,7 +93,16 @@ pub trait Filter {
 
 This trait allows filters to be composed into execution chains and pipelines seamlessly.
 
-### 2.3 Convolution Engine
+### 2.3 Hardware SIMD Acceleration Subsystem (`simd`)
+
+Performance-critical color effects (Invert, Brightness, Grayscale) are accelerated via hardware SIMD intrinsics:
+
+- **x86_64:** Runtime CPU feature detection via `is_x86_feature_detected!("avx2")` with SSE2 (128-bit) fallback.
+- **AArch64:** Compile-time 128-bit ARM NEON vectorization (`vld1q_u8`, `vqaddq_u8`, `vqsubq_u8`, `vmvnq_u8`, `vbslq_u8`, `vmlal_u8`).
+- **WebAssembly:** Compile-time WASM SIMD128 vectorization (`v128_not`, `u8x16_add_sat`, `u8x16_sub_sat`, `v128_bitselect`) when target feature `simd128` is enabled.
+- **Scalar Fallback:** Reference implementation used for unsupported targets or scalar operations.
+
+### 2.4 Convolution Engine
 
 Spatial filters use either general 2D kernels or optimized 1D separable kernels:
 - **`Kernel`:** Standard $N \times M$ matrix convolution with border handling policies (`BorderHandling::Clamp`, `BorderHandling::Reflect`).

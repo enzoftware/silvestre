@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use silvestre_core::{
     effects::{BrightnessFilter, GrayscaleFilter, InvertFilter},
     filters::Filter,
+    simd,
     transform::{Interpolation, MirrorFilter, MirrorMode, ResizeFilter},
     ColorSpace, SilvestreImage,
 };
@@ -54,6 +55,62 @@ fn bench_effects(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_simd_vs_scalar(c: &mut Criterion) {
+    let mut group = c.benchmark_group("simd_vs_scalar");
+
+    let size = 512 * 512 * 3; // 512x512 RGB = 786,432 bytes
+    let src = black_box(vec![120u8; size]);
+    let mut dst = vec![0u8; size];
+
+    // Invert benchmark
+    group.bench_function("invert_scalar_512x512", |b| {
+        b.iter(|| {
+            simd::scalar::invert(&src, &mut dst, 3);
+            black_box(&dst);
+        });
+    });
+
+    group.bench_function("invert_simd_512x512", |b| {
+        b.iter(|| {
+            simd::invert(&src, &mut dst, 3);
+            black_box(&dst);
+        });
+    });
+
+    // Brightness add benchmark
+    group.bench_function("brightness_add_scalar_512x512", |b| {
+        b.iter(|| {
+            simd::scalar::brightness_add(&src, &mut dst, 40, 3);
+            black_box(&dst);
+        });
+    });
+
+    group.bench_function("brightness_add_simd_512x512", |b| {
+        b.iter(|| {
+            simd::brightness_add(&src, &mut dst, 40, 3);
+            black_box(&dst);
+        });
+    });
+
+    // Grayscale conversion benchmark
+    let mut dst_gray = vec![0u8; 512 * 512];
+    group.bench_function("grayscale_scalar_512x512", |b| {
+        b.iter(|| {
+            simd::scalar::grayscale_rgb(&src, &mut dst_gray);
+            black_box(&dst_gray);
+        });
+    });
+
+    group.bench_function("grayscale_simd_512x512", |b| {
+        b.iter(|| {
+            simd::grayscale_rgb(&src, &mut dst_gray);
+            black_box(&dst_gray);
+        });
+    });
+
+    group.finish();
+}
+
 fn bench_transforms(c: &mut Criterion) {
     let mut group = c.benchmark_group("transforms");
 
@@ -93,5 +150,10 @@ fn bench_transforms(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_effects, bench_transforms);
+criterion_group!(
+    benches,
+    bench_effects,
+    bench_simd_vs_scalar,
+    bench_transforms
+);
 criterion_main!(benches);

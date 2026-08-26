@@ -4,12 +4,12 @@
 //! (if present) is left unchanged.
 
 use crate::filters::Filter;
-use crate::{ColorSpace, Result, SilvestreImage};
+use crate::{Result, SilvestreImage};
 
 /// Colour inversion filter.
 ///
 /// Replaces every colour channel value `v` with `255 - v`. The alpha channel
-/// (for [`ColorSpace::Rgba`]) is preserved as-is.
+/// (for [`crate::ColorSpace::Rgba`]) is preserved as-is.
 ///
 /// Applying the filter twice is a round-trip: `invert(invert(img)) == img`.
 ///
@@ -33,17 +33,10 @@ pub struct InvertFilter;
 /// See [`InvertFilter`] for details.
 pub fn invert(image: &SilvestreImage) -> Result<SilvestreImage> {
     let cs = image.color_space();
-    let channels = cs.channels();
-    // For RGBA the alpha channel (index 3 per pixel) is preserved.
-    let colour_channels = if cs == ColorSpace::Rgba { 3 } else { channels };
+    let src = image.pixels();
+    let mut dst = vec![0u8; src.len()];
 
-    let mut dst = image.pixels().to_vec();
-
-    for pixel in dst.chunks_exact_mut(channels) {
-        for channel in pixel.iter_mut().take(colour_channels) {
-            *channel = 255 - *channel;
-        }
-    }
+    crate::simd::invert(src, &mut dst, cs.channels());
 
     SilvestreImage::new(dst, image.width(), image.height(), cs)
 }
@@ -57,6 +50,7 @@ impl Filter for InvertFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ColorSpace;
 
     fn img(pixels: Vec<u8>, w: u32, h: u32, cs: ColorSpace) -> SilvestreImage {
         SilvestreImage::new(pixels, w, h, cs).unwrap()
