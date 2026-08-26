@@ -54,10 +54,10 @@ impl Filter for BrightnessFilter {
         let mut dst = vec![0u8; src.len()];
 
         if self.delta >= 0 {
-            let delta = self.delta.min(255) as u8;
+            let delta = self.delta.clamp(0, 255) as u8;
             crate::simd::brightness_add(src, &mut dst, delta, cs.channels());
         } else {
-            let delta = (-self.delta).min(255) as u8;
+            let delta = (-i64::from(self.delta)).clamp(0, 255) as u8;
             crate::simd::brightness_sub(src, &mut dst, delta, cs.channels());
         }
 
@@ -158,5 +158,15 @@ mod tests {
     #[test]
     fn delta_accessor() {
         assert_eq!(BrightnessFilter::new(-30).delta(), -30);
+    }
+
+    #[test]
+    fn extreme_deltas_do_not_overflow() {
+        let image = img(vec![128, 128, 128], 1, 1, ColorSpace::Rgb);
+        let min_out = BrightnessFilter::new(i32::MIN).apply(&image).unwrap();
+        assert_eq!(min_out.pixels(), &[0, 0, 0]);
+
+        let max_out = BrightnessFilter::new(i32::MAX).apply(&image).unwrap();
+        assert_eq!(max_out.pixels(), &[255, 255, 255]);
     }
 }

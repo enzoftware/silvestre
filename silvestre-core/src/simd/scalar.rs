@@ -83,9 +83,8 @@ pub fn brightness_sub(src: &[u8], dst: &mut [u8], delta: u8, channels: usize) {
 pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
     let (chunks, _) = src.as_chunks::<3>();
     for (&[r, g, b], d) in chunks.iter().zip(dst.iter_mut()) {
-        let lum = (0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b))
-            .round()
-            .clamp(0.0, 255.0) as u8;
+        let lum = ((19595 * u32::from(r) + 38470 * u32::from(g) + 7471 * u32::from(b) + 32768)
+            >> 16) as u8;
         *d = lum;
     }
 }
@@ -95,9 +94,8 @@ pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
 pub fn grayscale_rgba(src: &[u8], dst: &mut [u8]) {
     let (chunks, _) = src.as_chunks::<4>();
     for (&[r, g, b, _], d) in chunks.iter().zip(dst.iter_mut()) {
-        let lum = (0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b))
-            .round()
-            .clamp(0.0, 255.0) as u8;
+        let lum = ((19595 * u32::from(r) + 38470 * u32::from(g) + 7471 * u32::from(b) + 32768)
+            >> 16) as u8;
         *d = lum;
     }
 }

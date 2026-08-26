@@ -66,12 +66,14 @@ fn bench_simd_vs_scalar(c: &mut Criterion) {
     group.bench_function("invert_scalar_512x512", |b| {
         b.iter(|| {
             simd::scalar::invert(&src, &mut dst, 3);
+            black_box(&dst);
         });
     });
 
     group.bench_function("invert_simd_512x512", |b| {
         b.iter(|| {
             simd::invert(&src, &mut dst, 3);
+            black_box(&dst);
         });
     });
 
@@ -79,12 +81,14 @@ fn bench_simd_vs_scalar(c: &mut Criterion) {
     group.bench_function("brightness_add_scalar_512x512", |b| {
         b.iter(|| {
             simd::scalar::brightness_add(&src, &mut dst, 40, 3);
+            black_box(&dst);
         });
     });
 
     group.bench_function("brightness_add_simd_512x512", |b| {
         b.iter(|| {
             simd::brightness_add(&src, &mut dst, 40, 3);
+            black_box(&dst);
         });
     });
 
@@ -93,12 +97,14 @@ fn bench_simd_vs_scalar(c: &mut Criterion) {
     group.bench_function("grayscale_scalar_512x512", |b| {
         b.iter(|| {
             simd::scalar::grayscale_rgb(&src, &mut dst_gray);
+            black_box(&dst_gray);
         });
     });
 
     group.bench_function("grayscale_simd_512x512", |b| {
         b.iter(|| {
             simd::grayscale_rgb(&src, &mut dst_gray);
+            black_box(&dst_gray);
         });
     });
 

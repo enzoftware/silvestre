@@ -97,7 +97,19 @@ pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
     {
         aarch64::grayscale_rgb(src, dst);
     }
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
+    {
+        x86_64::grayscale_rgb(src, dst);
+    }
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        wasm::grayscale_rgb(src, dst);
+    }
+    #[cfg(not(any(
+        target_arch = "aarch64",
+        target_arch = "x86_64",
+        all(target_arch = "wasm32", target_feature = "simd128")
+    )))]
     {
         scalar::grayscale_rgb(src, dst);
     }
@@ -110,7 +122,19 @@ pub fn grayscale_rgba(src: &[u8], dst: &mut [u8]) {
     {
         aarch64::grayscale_rgba(src, dst);
     }
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
+    {
+        x86_64::grayscale_rgba(src, dst);
+    }
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    {
+        wasm::grayscale_rgba(src, dst);
+    }
+    #[cfg(not(any(
+        target_arch = "aarch64",
+        target_arch = "x86_64",
+        all(target_arch = "wasm32", target_feature = "simd128")
+    )))]
     {
         scalar::grayscale_rgba(src, dst);
     }
@@ -194,16 +218,11 @@ mod tests {
             scalar::grayscale_rgb(&src, &mut dst_scalar);
             grayscale_rgb(&src, &mut dst_simd);
 
-            // Allow at most 1 unit difference due to floating point vs fixed-point rounding
-            for (i, (&s, &v)) in dst_scalar.iter().zip(dst_simd.iter()).enumerate() {
-                assert!(
-                    (s as i16 - v as i16).abs() <= 1,
-                    "grayscale RGB mismatch at index {}: scalar={}, simd={}",
-                    i,
-                    s,
-                    v
-                );
-            }
+            assert_eq!(
+                dst_scalar, dst_simd,
+                "grayscale RGB mismatch at count {}",
+                count
+            );
         }
     }
 
@@ -218,15 +237,11 @@ mod tests {
             scalar::grayscale_rgba(&src, &mut dst_scalar);
             grayscale_rgba(&src, &mut dst_simd);
 
-            for (i, (&s, &v)) in dst_scalar.iter().zip(dst_simd.iter()).enumerate() {
-                assert!(
-                    (s as i16 - v as i16).abs() <= 1,
-                    "grayscale RGBA mismatch at index {}: scalar={}, simd={}",
-                    i,
-                    s,
-                    v
-                );
-            }
+            assert_eq!(
+                dst_scalar, dst_simd,
+                "grayscale RGBA mismatch at count {}",
+                count
+            );
         }
     }
 }

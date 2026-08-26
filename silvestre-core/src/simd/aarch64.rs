@@ -196,7 +196,7 @@ pub fn brightness_sub(src: &[u8], dst: &mut [u8], delta: u8, channels: usize) {
     }
 }
 
-/// Grayscale conversion for interleaved RGB pixels using ARM NEON with 2x unrolling.
+/// Grayscale conversion for interleaved RGB pixels using ARM NEON (ITU-R BT.601 exact 16-bit fixed-point).
 #[cfg(target_arch = "aarch64")]
 #[inline]
 pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
@@ -205,39 +205,50 @@ pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
     let mut px = 0;
 
     unsafe {
-        let c_r = vdup_n_u8(77);
-        let c_g = vdup_n_u8(150);
-        let c_b = vdup_n_u8(29);
-
         // Process 16 pixels (48 source bytes -> 16 destination bytes) per iteration
         while px + 16 <= dst_len {
             let src_ptr = src.as_ptr().add(px * 3);
             let rgb = vld3q_u8(src_ptr);
 
-            // Compute fixed-point (77*R + 150*G + 29*B + 128) >> 8
             // Low 8 pixels
-            let r_low = vget_low_u8(rgb.0);
-            let g_low = vget_low_u8(rgb.1);
-            let b_low = vget_low_u8(rgb.2);
+            let r_low_u16 = vmovl_u8(vget_low_u8(rgb.0));
+            let g_low_u16 = vmovl_u8(vget_low_u8(rgb.1));
+            let b_low_u16 = vmovl_u8(vget_low_u8(rgb.2));
 
-            let mut acc_low = vdupq_n_u16(128);
-            acc_low = vmlal_u8(acc_low, r_low, c_r);
-            acc_low = vmlal_u8(acc_low, g_low, c_g);
-            acc_low = vmlal_u8(acc_low, b_low, c_b);
-            let gray_low = vshrn_n_u16(acc_low, 8);
+            let mut acc0 = vdupq_n_u32(32768);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(r_low_u16), 19595);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(g_low_u16), 38470);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(b_low_u16), 7471);
+            let gray0 = vshrn_n_u32(acc0, 16);
+
+            let mut acc1 = vdupq_n_u32(32768);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(r_low_u16), 19595);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(g_low_u16), 38470);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(b_low_u16), 7471);
+            let gray1 = vshrn_n_u32(acc1, 16);
+
+            let gray_low_8 = vmovn_u16(vcombine_u16(gray0, gray1));
 
             // High 8 pixels
-            let r_high = vget_high_u8(rgb.0);
-            let g_high = vget_high_u8(rgb.1);
-            let b_high = vget_high_u8(rgb.2);
+            let r_high_u16 = vmovl_u8(vget_high_u8(rgb.0));
+            let g_high_u16 = vmovl_u8(vget_high_u8(rgb.1));
+            let b_high_u16 = vmovl_u8(vget_high_u8(rgb.2));
 
-            let mut acc_high = vdupq_n_u16(128);
-            acc_high = vmlal_u8(acc_high, r_high, c_r);
-            acc_high = vmlal_u8(acc_high, g_high, c_g);
-            acc_high = vmlal_u8(acc_high, b_high, c_b);
-            let gray_high = vshrn_n_u16(acc_high, 8);
+            let mut acc2 = vdupq_n_u32(32768);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(r_high_u16), 19595);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(g_high_u16), 38470);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(b_high_u16), 7471);
+            let gray2 = vshrn_n_u32(acc2, 16);
 
-            let gray_16 = vcombine_u8(gray_low, gray_high);
+            let mut acc3 = vdupq_n_u32(32768);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(r_high_u16), 19595);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(g_high_u16), 38470);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(b_high_u16), 7471);
+            let gray3 = vshrn_n_u32(acc3, 16);
+
+            let gray_high_8 = vmovn_u16(vcombine_u16(gray2, gray3));
+
+            let gray_16 = vcombine_u8(gray_low_8, gray_high_8);
             vst1q_u8(dst.as_mut_ptr().add(px), gray_16);
             px += 16;
         }
@@ -248,7 +259,7 @@ pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
     }
 }
 
-/// Grayscale conversion for interleaved RGBA pixels using ARM NEON.
+/// Grayscale conversion for interleaved RGBA pixels using ARM NEON (ITU-R BT.601 exact 16-bit fixed-point).
 #[cfg(target_arch = "aarch64")]
 #[inline]
 pub fn grayscale_rgba(src: &[u8], dst: &mut [u8]) {
@@ -257,35 +268,47 @@ pub fn grayscale_rgba(src: &[u8], dst: &mut [u8]) {
     let mut px = 0;
 
     unsafe {
-        let c_r = vdup_n_u8(77);
-        let c_g = vdup_n_u8(150);
-        let c_b = vdup_n_u8(29);
-
         while px + 16 <= dst_len {
             let src_ptr = src.as_ptr().add(px * 4);
             let rgba = vld4q_u8(src_ptr);
 
-            let r_low = vget_low_u8(rgba.0);
-            let g_low = vget_low_u8(rgba.1);
-            let b_low = vget_low_u8(rgba.2);
+            let r_low_u16 = vmovl_u8(vget_low_u8(rgba.0));
+            let g_low_u16 = vmovl_u8(vget_low_u8(rgba.1));
+            let b_low_u16 = vmovl_u8(vget_low_u8(rgba.2));
 
-            let mut acc_low = vdupq_n_u16(128);
-            acc_low = vmlal_u8(acc_low, r_low, c_r);
-            acc_low = vmlal_u8(acc_low, g_low, c_g);
-            acc_low = vmlal_u8(acc_low, b_low, c_b);
-            let gray_low = vshrn_n_u16(acc_low, 8);
+            let mut acc0 = vdupq_n_u32(32768);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(r_low_u16), 19595);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(g_low_u16), 38470);
+            acc0 = vmlal_n_u16(acc0, vget_low_u16(b_low_u16), 7471);
+            let gray0 = vshrn_n_u32(acc0, 16);
 
-            let r_high = vget_high_u8(rgba.0);
-            let g_high = vget_high_u8(rgba.1);
-            let b_high = vget_high_u8(rgba.2);
+            let mut acc1 = vdupq_n_u32(32768);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(r_low_u16), 19595);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(g_low_u16), 38470);
+            acc1 = vmlal_n_u16(acc1, vget_high_u16(b_low_u16), 7471);
+            let gray1 = vshrn_n_u32(acc1, 16);
 
-            let mut acc_high = vdupq_n_u16(128);
-            acc_high = vmlal_u8(acc_high, r_high, c_r);
-            acc_high = vmlal_u8(acc_high, g_high, c_g);
-            acc_high = vmlal_u8(acc_high, b_high, c_b);
-            let gray_high = vshrn_n_u16(acc_high, 8);
+            let gray_low_8 = vmovn_u16(vcombine_u16(gray0, gray1));
 
-            let gray_16 = vcombine_u8(gray_low, gray_high);
+            let r_high_u16 = vmovl_u8(vget_high_u8(rgba.0));
+            let g_high_u16 = vmovl_u8(vget_high_u8(rgba.1));
+            let b_high_u16 = vmovl_u8(vget_high_u8(rgba.2));
+
+            let mut acc2 = vdupq_n_u32(32768);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(r_high_u16), 19595);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(g_high_u16), 38470);
+            acc2 = vmlal_n_u16(acc2, vget_low_u16(b_high_u16), 7471);
+            let gray2 = vshrn_n_u32(acc2, 16);
+
+            let mut acc3 = vdupq_n_u32(32768);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(r_high_u16), 19595);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(g_high_u16), 38470);
+            acc3 = vmlal_n_u16(acc3, vget_high_u16(b_high_u16), 7471);
+            let gray3 = vshrn_n_u32(acc3, 16);
+
+            let gray_high_8 = vmovn_u16(vcombine_u16(gray2, gray3));
+
+            let gray_16 = vcombine_u8(gray_low_8, gray_high_8);
             vst1q_u8(dst.as_mut_ptr().add(px), gray_16);
             px += 16;
         }

@@ -189,3 +189,17 @@ pub fn brightness_sub(src: &[u8], dst: &mut [u8], delta: u8, channels: usize) {
         super::scalar::brightness_sub(&src[i..len], &mut dst[i..len], delta, channels);
     }
 }
+
+/// Grayscale conversion for interleaved RGB pixels on x86_64.
+#[cfg(target_arch = "x86_64")]
+#[inline]
+pub fn grayscale_rgb(src: &[u8], dst: &mut [u8]) {
+    super::scalar::grayscale_rgb(src, dst);
+}
+
+/// Grayscale conversion for interleaved RGBA pixels on x86_64.
+#[cfg(target_arch = "x86_64")]
+#[inline]
+pub fn grayscale_rgba(src: &[u8], dst: &mut [u8]) {
+    super::scalar::grayscale_rgba(src, dst);
+}

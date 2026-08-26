@@ -95,12 +95,12 @@ This trait allows filters to be composed into execution chains and pipelines sea
 
 ### 2.3 Hardware SIMD Acceleration Subsystem (`simd`)
 
-Performance-critical pixel-level and spatial operations are accelerated via hardware SIMD intrinsics with dynamic runtime dispatch:
+Performance-critical color effects (Invert, Brightness, Grayscale) are accelerated via hardware SIMD intrinsics:
 
-- **AArch64 (ARM NEON):** 128-bit vectorization for Apple Silicon, iOS, and Android ARM64 devices (`vld1q_u8`, `vqaddq_u8`, `vqsubq_u8`, `vmvnq_u8`, `vmlal_u8`).
-- **x86_64 (AVX2 & SSE2):** 256-bit vectorization via runtime `is_x86_feature_detected!("avx2")` with SSE2 (128-bit) fallback.
-- **WebAssembly (SIMD128):** 128-bit vectorization for modern browsers using `core::arch::wasm32`.
-- **Guaranteed Scalar Baseline:** Auto-vectorizable chunk loops for older architectures and non-SIMD platforms.
+- **x86_64:** Runtime CPU feature detection via `is_x86_feature_detected!("avx2")` with SSE2 (128-bit) fallback.
+- **AArch64:** Compile-time 128-bit ARM NEON vectorization (`vld1q_u8`, `vqaddq_u8`, `vqsubq_u8`, `vmvnq_u8`, `vbslq_u8`, `vmlal_u8`).
+- **WebAssembly:** Compile-time WASM SIMD128 vectorization (`v128_not`, `u8x16_add_sat`, `u8x16_sub_sat`, `v128_bitselect`) when target feature `simd128` is enabled.
+- **Scalar Fallback:** Reference implementation used for unsupported targets or scalar operations.
 
 ### 2.4 Convolution Engine
 
