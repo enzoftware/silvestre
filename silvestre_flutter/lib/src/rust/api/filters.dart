@@ -15,7 +15,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 ///
 /// - `name`: one of `grayscale`, `invert`, `sepia`, `brightness`, `contrast`,
 ///   `sharpen`, `box_blur`, `sobel`, `gaussian`, `median`, `canny`,
-///   `crop`, `resize`, `rotate`, `mirror`.
+///   `brick`, `crop`, `resize`, `rotate`, `mirror`.
 /// - `params_json`: a JSON object with filter-specific parameters.
 ///   Pass `"{}"` or `""` for filters that take no parameters.
 ///
@@ -34,6 +34,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// | `gaussian`   | `{"sigma": <f32>}`                                 |
 /// | `median`     | `{"size": <usize>}`                                |
 /// | `canny`      | `{"low": <f32>, "high": <f32>, "sigma": <f32>}`   |
+/// | `brick`      | `{"columns": <u32>, "rows": <u32>, "max_colors"?: <u32>, "background"?: [r, g, b]}` |
 /// | `crop`       | `{"x": <u32>, "y": <u32>, "w": <u32>, "h": <u32>}`|
 /// | `resize`     | `{"w": <u32>, "h": <u32>}`                         |
 /// | `rotate`     | `{"angle": <f64>}`                                 |

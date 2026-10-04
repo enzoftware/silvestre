@@ -111,6 +111,7 @@ const sharp = image.applyFilter("sharpen", {});
 const median = image.applyFilter("median", { size: 3 });
 const edges = image.applyFilter("canny", { low: 50, high: 150, sigma: 1.4 });
 const sobel = image.applyFilter("sobel", {});
+const bricks = image.applyFilter("brick", { columns: 32, rows: 24, max_colors: 12 });
 
 // 3. Transformations
 const resized = image.applyFilter("resize", { w: 800, h: 600 });

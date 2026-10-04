@@ -7,9 +7,9 @@ performance on Android and iOS while keeping a fully idiomatic, async Dart API.
 
 ## Features
 
-- **15 image filters**: grayscale, invert, sepia, brightness, contrast, sharpen,
-  box blur, Sobel, Gaussian blur, median, Canny edge detection, crop, resize,
-  rotate, mirror
+- **16 image filters**: grayscale, invert, sepia, brightness, contrast, sharpen,
+  box blur, Sobel, Gaussian blur, median, Canny edge detection, brick mosaic,
+  crop, resize, rotate, mirror
 - **Image I/O**: load/save PNG, JPEG, BMP from files or memory
 - **Histogram analysis**: per-channel and luminance histograms with statistics
 - **Async API**: all operations run on a background isolate, keeping the UI
@@ -204,6 +204,7 @@ final lumHist = await image.computeLuminanceHistogram();
 | `gaussian` | `gaussian(sigma)` | `sigma`: double |
 | `median` | `median(size)` | `size`: int (odd kernel size) |
 | `canny` | `canny(low, high, sigma)` | `low`, `high`, `sigma`: double |
+| `brick` | `brick(columns:, rows:, maxColors:, background:)` | `columns`, `rows`: int; optional `max_colors`: int, `background`: `[r, g, b]` |
 | `crop` | `crop(x, y, w, h)` | `x`, `y`, `w`, `h`: int |
 | `resize` | `resize(w, h)` | `w`, `h`: int |
 | `rotate` | `rotate(angle)` | `angle`: double (degrees) |

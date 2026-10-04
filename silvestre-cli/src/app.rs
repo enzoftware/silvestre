@@ -1,7 +1,9 @@
 //! Application state and logic
 
+use crate::filters::brick_plan;
 use crate::filters::{apply_named_filter, silvestre_to_dynamic, validate_filter, KNOWN_FILTERS};
 use image::ImageReader;
+use silvestre_core::filters::BrickPlan;
 use silvestre_core::{ColorSpace, SilvestreImage};
 use std::path::PathBuf;
 
@@ -14,6 +16,8 @@ pub enum Screen {
     Info,
     Help,
     Processing,
+    /// Color counts shown after a successful `brick` apply.
+    BrickReport,
 }
 
 /// A single stage in a filter pipeline: a filter name plus the raw parameter
@@ -75,6 +79,11 @@ pub struct App {
     pub pipeline_field: PipelineField,
     pub pipeline_input_file: String,
     pub pipeline_output_file: String,
+    // Brick report screen state.
+    /// Plan from the last successful `brick` apply, shown on the report screen.
+    pub brick_plan: Option<BrickPlan>,
+    /// Vertical scroll offset of the color-count table.
+    pub brick_report_scroll: u16,
 }
 
 impl App {
@@ -99,6 +108,11 @@ impl App {
                 name: "invert",
                 category: "Effects",
                 description: "Invert colors",
+            },
+            FilterInfo {
+                name: "brick",
+                category: "Filters",
+                description: "Brick mosaic + color counts (columns,rows[,max_colors])",
             },
             FilterInfo {
                 name: "crop",
@@ -150,12 +164,15 @@ impl App {
             pipeline_field: PipelineField::Filters,
             pipeline_input_file: String::new(),
             pipeline_output_file: String::new(),
+            brick_plan: None,
+            brick_report_scroll: 0,
         }
     }
 
     // Navigation
     pub fn go_to_main(&mut self) {
         self.current_screen = Screen::Main;
+        self.brick_plan = None;
         self.status_message = "Back to main menu. 🐾".to_string();
     }
 
@@ -261,9 +278,34 @@ impl App {
 
         self.processing = false;
         self.status_message = match result {
-            Ok(msg) => msg,
+            Ok((msg, plan)) => {
+                self.brick_plan = plan;
+                msg
+            }
             Err(e) => format!("Error: {} 🐱", e),
         };
+    }
+
+    /// Leave the Processing screen: show the brick report if the last apply
+    /// produced one, otherwise return to the main menu.
+    pub fn finish_processing(&mut self) {
+        if self.brick_plan.is_some() {
+            self.current_screen = Screen::BrickReport;
+            self.brick_report_scroll = 0;
+        } else {
+            self.go_to_main();
+        }
+    }
+
+    pub fn brick_report_scroll_down(&mut self) {
+        let rows = self.brick_plan.as_ref().map_or(0, |p| p.counts().len());
+        if usize::from(self.brick_report_scroll) + 1 < rows {
+            self.brick_report_scroll += 1;
+        }
+    }
+
+    pub fn brick_report_scroll_up(&mut self) {
+        self.brick_report_scroll = self.brick_report_scroll.saturating_sub(1);
     }
 
     fn apply_filter_impl(
@@ -272,7 +314,7 @@ impl App {
         output_path: &str,
         filter_name: &str,
         params: &str,
-    ) -> Result<String, String> {
+    ) -> Result<(String, Option<BrickPlan>), String> {
         let input_file = PathBuf::from(input_path);
         if !input_file.exists() {
             return Err("Input file not found!".to_string());
@@ -300,9 +342,15 @@ impl App {
             .save(output_path)
             .map_err(|e| format!("Failed to save image: {}", e))?;
 
-        Ok(format!(
-            "Filter applied successfully! 🎉 Saved to {}",
-            output_path
+        let plan = if filter_name == "brick" {
+            Some(brick_plan(&silvestre_img, params)?)
+        } else {
+            None
+        };
+
+        Ok((
+            format!("Filter applied successfully! 🎉 Saved to {}", output_path),
+            plan,
         ))
     }
 
@@ -819,5 +867,32 @@ mod tests {
         app.pipeline_filters[0].enabled = true;
         app.pipeline_run_action();
         assert!(app.status_message.contains("input and output"));
+    }
+
+    #[test]
+    fn finish_processing_shows_brick_report_when_plan_present() {
+        let mut app = App::new();
+        app.current_screen = Screen::Processing;
+        let img = SilvestreImage::new(vec![0; 4 * 4 * 4], 4, 4, ColorSpace::Rgba).unwrap();
+        app.brick_plan = Some(brick_plan(&img, "2,2").unwrap());
+
+        app.finish_processing();
+        assert_eq!(app.current_screen, Screen::BrickReport);
+
+        // A single color: scrolling can't move past the only row.
+        app.brick_report_scroll_down();
+        assert_eq!(app.brick_report_scroll, 0);
+
+        app.go_to_main();
+        assert_eq!(app.current_screen, Screen::Main);
+        assert!(app.brick_plan.is_none());
+    }
+
+    #[test]
+    fn finish_processing_without_plan_returns_to_main() {
+        let mut app = App::new();
+        app.current_screen = Screen::Processing;
+        app.finish_processing();
+        assert_eq!(app.current_screen, Screen::Main);
     }
 }

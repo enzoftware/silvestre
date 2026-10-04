@@ -74,6 +74,16 @@ export const FILTERS: FilterDef[] = [
       { key: "sigma", label: "Sigma", type: "float", min: 0.1, max: 5.0, step: 0.1, default: 1.4 },
     ],
   },
+  {
+    name: "brick",
+    label: "Brick Mosaic",
+    category: "filters",
+    params: [
+      { key: "columns", label: "Columns", type: "int", min: 1, max: 128, step: 1, default: 32 },
+      { key: "rows", label: "Rows", type: "int", min: 1, max: 128, step: 1, default: 32 },
+      { key: "max_colors", label: "Max colors", type: "int", min: 1, max: 64, step: 1, default: 16 },
+    ],
+  },
 
   // Transforms
   {

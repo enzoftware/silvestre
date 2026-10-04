@@ -223,6 +223,28 @@ class SilvestreImage {
   }) =>
       applyFilter('canny', params: {'low': low, 'high': high, 'sigma': sigma});
 
+  /// Turn the image into a brick mosaic of [columns] × [rows] solid-color
+  /// bricks.
+  ///
+  /// Each brick takes the average color of its pixels. Set [maxColors] to
+  /// limit the palette (median-cut). Transparent pixels are flattened onto
+  /// [background] (an `[r, g, b]` list, white by default), so the result is
+  /// fully opaque. Output keeps the input's size.
+  Future<SilvestreImage> brick({
+    required int columns,
+    required int rows,
+    int? maxColors,
+    List<int>? background,
+  }) => applyFilter(
+    'brick',
+    params: {
+      'columns': columns,
+      'rows': rows,
+      if (maxColors != null) 'max_colors': maxColors,
+      if (background != null) 'background': background,
+    },
+  );
+
   /// Crop to the given rectangle.
   Future<SilvestreImage> crop(int x, int y, int w, int h) =>
       applyFilter('crop', params: {'x': x, 'y': y, 'w': w, 'h': h});

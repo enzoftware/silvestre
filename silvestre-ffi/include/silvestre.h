@@ -132,6 +132,7 @@ int32_t silvestre_image_save(const SilvestreImage *img, const char *path, const 
  * | `box_blur`    | *(none)*                                                |
  * | `sobel`       | *(none)*                                                |
  * | `canny`       | `{"low": <f32>, "high": <f32>, "sigma": <f32>}`        |
+ * | `brick`       | `{"columns": <u32>, "rows": <u32>, "max_colors"?: <u32>, "background"?: [<u8>; 3]}` |
  * | `crop`        | `{"x": <u32>, "y": <u32>, "w": <u32>, "h": <u32>}`     |
  * | `resize`      | `{"w": <u32>, "h": <u32>}`                              |
  * | `rotate`      | `{"angle": <f64>}`                                      |
@@ -143,7 +144,9 @@ int32_t silvestre_image_save(const SilvestreImage *img, const char *path, const 
  * `img` must be a valid mutable pointer. `filter_name` must be valid.
  * `params` may be null.
  */
-int32_t silvestre_apply_filter(SilvestreImage *img, const char *filter_name, const char *params);
+int32_t silvestre_apply_filter(SilvestreImage *img,
+                               const char *filter_name,
+                               const char *params);
 
 /**
  * Return a pointer to the last error message for the current thread.

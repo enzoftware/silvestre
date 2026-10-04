@@ -37,6 +37,7 @@ Silvestre is a cross-platform image processing library implemented in pure Rust,
 │  │  │ • Gaussian, Box Blur   │  │ • Grayscale, Sepia     │                  │
 │  │  │ • Median, Sharpen      │  │ • Invert               │                  │
 │  │  │ • Sobel, Canny         │  │ • Brightness, Contrast │                  │
+│  │  │ • Brick Mosaic         │  │                        │                  │
 │  │  └────────────────────────┘  └────────────────────────┘                  │
 │  │                                                                          │
 │  │  ┌────────────────────────┐  ┌────────────────────────┐                  │
