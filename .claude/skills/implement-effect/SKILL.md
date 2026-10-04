@@ -26,10 +26,10 @@ Derive the snake_case file name automatically: `HueSaturation` → `hue_saturati
 
 ```bash
 # 1. Confirm the workspace builds cleanly on entry
-cargo build --workspace 2>&1 | tail -5
+cargo build --workspace --quiet
 
 # 2. Confirm all tests pass on entry (establish a green baseline)
-cargo test --workspace --quiet 2>&1 | tail -10
+cargo test --workspace --quiet
 
 # 3. Confirm the effect does not already exist
 grep -r "<SnakeCaseName>" silvestre-core/src/ --include="*.rs" -l
@@ -170,6 +170,8 @@ impl Filter for <EffectName>Filter {
 }
 ```
 
+**Transforms that change dimensions:** the template above preserves the input size, which fits per-pixel effects and same-size transforms (`Mirror`). For dimension-changing transforms (`Crop`, `Resize`, 90° `Rotate`), compute the output `(out_w, out_h)` first, allocate `vec![0u8; out_w * out_h * channels]`, remap pixels from source coordinates, and return `SilvestreImage::new(dst, out_w, out_h, cs)`. Validate parameters (e.g. crop bounds, zero target size) and return an error rather than panicking. See `silvestre-core/src/transform/crop.rs` for the pattern.
+
 **SIMD fast-path (for hot per-pixel paths only):**
 
 If the effect is a simple per-channel arithmetic operation (saturating add/sub/mul, bitwise NOT, table lookup), add SIMD kernels following the pattern in `silvestre-core/src/simd/`:
@@ -202,16 +204,16 @@ Every effect **must** have `#[cfg(test)]` tests in the same file. Required cases
 
 | Category | Tests to include |
 |---|---|
-| **Identity / neutral** | Zero-delta or identity parameter → output equals input |
+| **Identity / neutral** | *If the operation has a neutral parameter:* zero-delta or identity parameter → output equals input. Skip for parameterless operations (e.g. `Invert`). |
 | **Known pixel values** | Hand-compute expected output for 1–2 specific pixels and assert exactly |
 | **Clamping** | Values that would overflow/underflow stay within `0..=255` |
 | **Color space coverage** | One test each for `Grayscale`, `Rgb`, `Rgba` |
 | **Alpha preservation** | For `Rgba`: alpha channel byte is unchanged |
-| **Dimension preservation** | Width, height, color space remain unchanged unless the effect changes color space |
+| **Output dimensions** | Effects/filters: width, height, color space remain unchanged unless the effect changes color space. Dimension-changing transforms: assert the computed output width/height for representative inputs, plus an error test for invalid parameters. |
 | **Empty image** | `0×0` image returns `Ok` with empty pixels |
 | **Filter trait delegation** | `<EffectName>Filter.apply(img)` produces identical output to the free function |
 | **Trait object** | `Box<dyn Filter>::apply(img)` compiles and produces the correct result |
-| **Parameter accessors** | `filter.param()` returns the value passed to `new()` |
+| **Parameter accessors** | *If the struct exposes accessors:* `filter.param()` returns the value passed to `new()`. Skip for parameterless operations. |
 | **Multi-pixel** | At least one test with a 2+ pixel image to catch off-by-one errors in the pixel loop |
 
 Use a local helper `fn img(pixels, w, h, cs) -> SilvestreImage` that calls `SilvestreImage::new(...).unwrap()` to reduce boilerplate.
@@ -235,8 +237,8 @@ cargo test --workspace
 # Confirm new tests specifically run and pass
 cargo test -p silvestre-core <snake_name>
 
-# Confirm docs compile (catches broken intra-doc links)
-cargo doc --workspace --no-deps 2>&1 | grep -i "error\|warning" | head -20
+# Confirm docs compile with zero warnings (catches broken intra-doc links)
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 ```
 
 **If any step fails:** fix it before proceeding. Do not skip `--D warnings` or suppress Clippy lints without a documented reason.
@@ -263,5 +265,5 @@ Before reporting the task as done, confirm every item:
 - [ ] `cargo fmt --all` passes
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` passes
 - [ ] `cargo test --workspace` passes
-- [ ] `cargo doc --workspace --no-deps` produces no errors
+- [ ] `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` passes
 - [ ] Architecture doc updated
