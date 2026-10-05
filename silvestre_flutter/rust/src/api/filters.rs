@@ -2,7 +2,8 @@ use silvestre_core::effects::{
     BrightnessFilter, ContrastFilter, GrayscaleFilter, InvertFilter, SepiaFilter,
 };
 use silvestre_core::filters::{
-    BoxBlurFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter, SobelFilter,
+    BoxBlurFilter, BrickFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter,
+    SobelFilter,
 };
 use silvestre_core::transform::{CropFilter, MirrorFilter, MirrorMode, ResizeFilter, RotateFilter};
 use silvestre_core::{Filter, SilvestreImage};
@@ -15,7 +16,7 @@ use super::image::SilvestreImageWrapper;
 ///
 /// - `name`: one of `grayscale`, `invert`, `sepia`, `brightness`, `contrast`,
 ///   `sharpen`, `box_blur`, `sobel`, `gaussian`, `median`, `canny`,
-///   `crop`, `resize`, `rotate`, `mirror`.
+///   `brick`, `crop`, `resize`, `rotate`, `mirror`.
 /// - `params_json`: a JSON object with filter-specific parameters.
 ///   Pass `"{}"` or `""` for filters that take no parameters.
 ///
@@ -34,6 +35,7 @@ use super::image::SilvestreImageWrapper;
 /// | `gaussian`   | `{"sigma": <f32>}`                                 |
 /// | `median`     | `{"size": <usize>}`                                |
 /// | `canny`      | `{"low": <f32>, "high": <f32>, "sigma": <f32>}`   |
+/// | `brick`      | `{"columns": <u32>, "rows": <u32>, "max_colors"?: <u32>, "background"?: [r, g, b]}` |
 /// | `crop`       | `{"x": <u32>, "y": <u32>, "w": <u32>, "h": <u32>}`|
 /// | `resize`     | `{"w": <u32>, "h": <u32>}`                         |
 /// | `rotate`     | `{"angle": <f64>}`                                 |
@@ -117,6 +119,8 @@ fn apply_named_filter(
                 .map_err(|e| e.to_string())
         }
 
+        "brick" => build_brick(params)?.apply(image).map_err(|e| e.to_string()),
+
         // Transforms
         "crop" => {
             let x = get_u32(params, "x")?;
@@ -160,6 +164,28 @@ fn apply_named_filter(
 // ---------------------------------------------------------------------------
 // JSON param helpers
 // ---------------------------------------------------------------------------
+
+fn build_brick(params: &serde_json::Value) -> Result<BrickFilter, String> {
+    let columns = get_u32(params, "columns")?;
+    let rows = get_u32(params, "rows")?;
+    let mut filter = BrickFilter::new(columns, rows);
+    if params.get("max_colors").is_some() {
+        filter = filter.with_max_colors(get_u32(params, "max_colors")?);
+    }
+    if let Some(bg) = params.get("background") {
+        filter = filter.with_background(parse_rgb(bg).ok_or("invalid param: background")?);
+    }
+    Ok(filter)
+}
+
+fn parse_rgb(value: &serde_json::Value) -> Option<[u8; 3]> {
+    let arr = value.as_array().filter(|a| a.len() == 3)?;
+    let mut rgb = [0u8; 3];
+    for (dst, v) in rgb.iter_mut().zip(arr) {
+        *dst = u8::try_from(v.as_u64()?).ok()?;
+    }
+    Some(rgb)
+}
 
 fn get_f32(params: &serde_json::Value, key: &str) -> Result<f32, String> {
     params
@@ -206,4 +232,38 @@ fn get_str(params: &serde_json::Value, key: &str) -> Result<String, String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .ok_or_else(|| format!("missing or invalid param: {key}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use silvestre_core::ColorSpace;
+
+    #[test]
+    fn brick_parses_all_params() {
+        let params = serde_json::json!({
+            "columns": 4, "rows": 2, "max_colors": 3, "background": [0, 10, 20]
+        });
+        let filter = build_brick(&params).unwrap();
+        assert_eq!(
+            filter,
+            BrickFilter::new(4, 2)
+                .with_max_colors(3)
+                .with_background([0, 10, 20])
+        );
+    }
+
+    #[test]
+    fn brick_rejects_bad_background() {
+        let params = serde_json::json!({ "columns": 1, "rows": 1, "background": [0, 300, 0] });
+        assert!(build_brick(&params).is_err());
+    }
+
+    #[test]
+    fn brick_dispatch_applies_filter() {
+        let image = SilvestreImage::new(vec![0, 100], 2, 1, ColorSpace::Grayscale).unwrap();
+        let params = serde_json::json!({ "columns": 1, "rows": 1 });
+        let out = apply_named_filter("brick", &image, &params).unwrap();
+        assert_eq!(out.pixels(), &[50, 50]);
+    }
 }

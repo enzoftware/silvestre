@@ -5,6 +5,7 @@
 //! the helpers in [`convolution`].
 
 pub mod box_blur;
+pub mod brick;
 pub mod canny;
 pub mod convolution;
 pub mod gaussian;
@@ -13,6 +14,7 @@ pub mod sharpen;
 pub mod sobel;
 
 pub use box_blur::BoxBlurFilter;
+pub use brick::{BrickColor, BrickFilter, BrickPlan};
 pub use canny::CannyFilter;
 pub use convolution::{apply_kernel, apply_separable_kernel, BorderMode, Kernel, SeparableKernel};
 pub use gaussian::GaussianFilter;

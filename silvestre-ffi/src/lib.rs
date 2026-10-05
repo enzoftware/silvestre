@@ -16,7 +16,8 @@ use silvestre_core::effects::{
     BrightnessFilter, ContrastFilter, GrayscaleFilter, InvertFilter, SepiaFilter,
 };
 use silvestre_core::filters::{
-    BoxBlurFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter, SobelFilter,
+    BoxBlurFilter, BrickFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter,
+    SobelFilter,
 };
 use silvestre_core::transform::{CropFilter, MirrorFilter, MirrorMode, ResizeFilter, RotateFilter};
 use silvestre_core::{ColorSpace, Filter, ImageFormat, SilvestreImage};
@@ -305,6 +306,7 @@ pub unsafe extern "C" fn silvestre_image_save(
 /// | `box_blur`    | *(none)*                                                |
 /// | `sobel`       | *(none)*                                                |
 /// | `canny`       | `{"low": <f32>, "high": <f32>, "sigma": <f32>}`        |
+/// | `brick`       | `{"columns": <u32>, "rows": <u32>, "max_colors"?: <u32>, "background"?: [<u8>; 3]}` |
 /// | `crop`        | `{"x": <u32>, "y": <u32>, "w": <u32>, "h": <u32>}`     |
 /// | `resize`      | `{"w": <u32>, "h": <u32>}`                              |
 /// | `rotate`      | `{"angle": <f64>}`                                      |
@@ -460,6 +462,18 @@ fn apply_named_filter(
                 .apply(image)
                 .map_err(|e| e.to_string())
         }
+        "brick" => {
+            let columns = parse_param_u32(params, "columns")?;
+            let rows = parse_param_u32(params, "rows")?;
+            let mut filter = BrickFilter::new(columns, rows);
+            if find_json_value(params, "max_colors").is_some() {
+                filter = filter.with_max_colors(parse_param_u32(params, "max_colors")?);
+            }
+            if find_json_value(params, "background").is_some() {
+                filter = filter.with_background(parse_param_rgb(params, "background")?);
+            }
+            filter.apply(image).map_err(|e| e.to_string())
+        }
 
         // Transforms
         "crop" => {
@@ -505,31 +519,30 @@ fn apply_named_filter(
 // Minimal JSON parameter parsing (avoids adding serde_json dependency)
 // ---------------------------------------------------------------------------
 
+/// Return the raw text following `"key":` in a flat JSON object, or `None` if
+/// the key is absent.
+fn find_json_value<'a>(json: &'a str, key: &str) -> Option<&'a str> {
+    // Search for `"key"` followed by optional whitespace and a colon.
+    let search = format!("\"{key}\"");
+    let mut search_from = 0;
+    loop {
+        let pos = json[search_from..].find(&search)? + search_from;
+        let rest = json[pos + search.len()..].trim_start();
+        if let Some(after) = rest.strip_prefix(':') {
+            return Some(after.trim_start());
+        }
+        // This occurrence wasn't a key (no colon after it), keep searching.
+        search_from = pos + search.len();
+    }
+}
+
 /// Extract a string value for `key` from a simple flat JSON object.
 ///
 /// This is a minimal parser for flat `{"key": value}` objects. It does not
 /// handle escaped quotes in string values or deeply nested structures.
 fn extract_json_value(json: &str, key: &str) -> Result<String, String> {
-    if json.is_empty() {
-        return Err(format!("missing required parameter: {key}"));
-    }
-
-    // Search for `"key"` followed by optional whitespace and a colon.
-    let search = format!("\"{key}\"");
-    let mut search_from = 0;
-    let after_colon = loop {
-        let pos = json[search_from..]
-            .find(&search)
-            .map(|p| p + search_from)
-            .ok_or_else(|| format!("missing required parameter: {key}"))?;
-
-        let rest = json[pos + search.len()..].trim_start();
-        if let Some(after) = rest.strip_prefix(':') {
-            break after.trim_start();
-        }
-        // This occurrence wasn't a key (no colon after it), keep searching.
-        search_from = pos + search.len();
-    };
+    let after_colon =
+        find_json_value(json, key).ok_or_else(|| format!("missing required parameter: {key}"))?;
 
     // If the value is a quoted string
     if let Some(content) = after_colon.strip_prefix('"') {
@@ -583,6 +596,21 @@ fn parse_param_f64(json: &str, key: &str) -> Result<f64, String> {
 
 fn parse_param_str(json: &str, key: &str) -> Result<String, String> {
     extract_json_value(json, key)
+}
+
+/// Parse a `[r, g, b]` array of `u8` values.
+fn parse_param_rgb(json: &str, key: &str) -> Result<[u8; 3], String> {
+    let invalid = || format!("invalid [r, g, b] for {key}");
+    let value =
+        find_json_value(json, key).ok_or_else(|| format!("missing required parameter: {key}"))?;
+    let inner = value.strip_prefix('[').ok_or_else(invalid)?;
+    let inner = &inner[..inner.find(']').ok_or_else(invalid)?];
+    let parts: Vec<u8> = inner
+        .split(',')
+        .map(|p| p.trim().parse::<u8>())
+        .collect::<Result<_, _>>()
+        .map_err(|_| invalid())?;
+    <[u8; 3]>::try_from(parts).map_err(|_| invalid())
 }
 
 // ---------------------------------------------------------------------------
@@ -895,6 +923,45 @@ mod tests {
             assert_eq!(rc, OK);
             silvestre_image_free(img);
         }
+    }
+
+    #[test]
+    fn test_apply_brick() {
+        unsafe {
+            let img = make_test_image();
+            let name = CString::new("brick").unwrap();
+            let params = CString::new(
+                r#"{"columns": 1, "rows": 1, "max_colors": 4, "background": [0, 0, 0]}"#,
+            )
+            .unwrap();
+            let rc = silvestre_apply_filter(img, name.as_ptr(), params.as_ptr());
+            assert_eq!(rc, OK);
+            assert_eq!(silvestre_image_width(img), 2);
+            assert_eq!(silvestre_image_height(img), 2);
+            silvestre_image_free(img);
+        }
+    }
+
+    #[test]
+    fn test_apply_brick_rejects_grid_larger_than_image() {
+        unsafe {
+            let img = make_test_image();
+            let name = CString::new("brick").unwrap();
+            let params = CString::new(r#"{"columns": 3, "rows": 1}"#).unwrap();
+            let rc = silvestre_apply_filter(img, name.as_ptr(), params.as_ptr());
+            assert_eq!(rc, ERR);
+            silvestre_image_free(img);
+        }
+    }
+
+    #[test]
+    fn test_parse_param_rgb() {
+        assert_eq!(
+            parse_param_rgb(r#"{"background": [1, 2, 255]}"#, "background"),
+            Ok([1, 2, 255])
+        );
+        assert!(parse_param_rgb(r#"{"background": [1, 2]}"#, "background").is_err());
+        assert!(parse_param_rgb(r#"{"background": [1, 2, 256]}"#, "background").is_err());
     }
 
     #[test]

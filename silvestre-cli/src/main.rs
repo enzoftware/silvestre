@@ -110,13 +110,19 @@ fn run_app<B: Backend>(mut terminal: Terminal<B>, mut app: App) -> Result<(), Bo
                     app::Screen::Processing => {
                         // Processing screen doesn't handle input
                     }
+                    app::Screen::BrickReport => match key.code {
+                        KeyCode::Esc | KeyCode::Enter => app.go_to_main(),
+                        KeyCode::Up => app.brick_report_scroll_up(),
+                        KeyCode::Down => app.brick_report_scroll_down(),
+                        _ => {}
+                    },
                 }
             }
         }
 
         // Check if processing is done
         if app.is_processing_done() {
-            app.go_to_main();
+            app.finish_processing();
         }
     }
 }

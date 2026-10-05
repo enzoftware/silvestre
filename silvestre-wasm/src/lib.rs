@@ -13,7 +13,8 @@ use silvestre_core::effects::{
     BrightnessFilter, ContrastFilter, GrayscaleFilter, InvertFilter, SepiaFilter,
 };
 use silvestre_core::filters::{
-    BoxBlurFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter, SobelFilter,
+    BoxBlurFilter, BrickFilter, CannyFilter, GaussianFilter, MedianFilter, SharpenFilter,
+    SobelFilter,
 };
 use silvestre_core::transform::{CropFilter, MirrorFilter, MirrorMode, ResizeFilter, RotateFilter};
 use silvestre_core::{ColorSpace, Filter, ImageFormat, SilvestreImage};
@@ -193,6 +194,29 @@ fn get_str(params: &serde_json::Value, key: &str) -> Result<String, JsValue> {
         .ok_or_else(|| JsValue::from_str(&format!("missing or invalid param: {key}")))
 }
 
+fn build_brick(params: &serde_json::Value) -> Result<BrickFilter, JsValue> {
+    let columns = get_u32(params, "columns")?;
+    let rows = get_u32(params, "rows")?;
+    let mut filter = BrickFilter::new(columns, rows);
+    if params.get("max_colors").is_some() {
+        filter = filter.with_max_colors(get_u32(params, "max_colors")?);
+    }
+    if let Some(bg) = params.get("background") {
+        let rgb = parse_rgb(bg).ok_or_else(|| JsValue::from_str("invalid param: background"))?;
+        filter = filter.with_background(rgb);
+    }
+    Ok(filter)
+}
+
+fn parse_rgb(value: &serde_json::Value) -> Option<[u8; 3]> {
+    let arr = value.as_array().filter(|a| a.len() == 3)?;
+    let mut rgb = [0u8; 3];
+    for (dst, v) in rgb.iter_mut().zip(arr) {
+        *dst = u8::try_from(v.as_u64()?).ok()?;
+    }
+    Some(rgb)
+}
+
 fn apply_named_filter(
     name: &str,
     image: &SilvestreImage,
@@ -248,6 +272,7 @@ fn apply_named_filter(
                 .apply(image)
                 .map_err(err_to_js)
         }
+        "brick" => build_brick(params)?.apply(image).map_err(err_to_js),
 
         // Transforms
         "crop" => {
@@ -286,5 +311,31 @@ fn apply_named_filter(
         }
 
         _ => Err(JsValue::from_str(&format!("unknown filter: {name}"))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn brick_parses_all_params() {
+        let params = serde_json::json!({
+            "columns": 4, "rows": 2, "max_colors": 3, "background": [0, 10, 20]
+        });
+        let filter = build_brick(&params).unwrap();
+        assert_eq!(
+            filter,
+            BrickFilter::new(4, 2)
+                .with_max_colors(3)
+                .with_background([0, 10, 20])
+        );
+    }
+
+    #[test]
+    fn parse_rgb_validates_shape_and_range() {
+        assert_eq!(parse_rgb(&serde_json::json!([1, 2, 3])), Some([1, 2, 3]));
+        assert_eq!(parse_rgb(&serde_json::json!([1, 2])), None);
+        assert_eq!(parse_rgb(&serde_json::json!([1, 2, 256])), None);
     }
 }

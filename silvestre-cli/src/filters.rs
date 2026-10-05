@@ -6,7 +6,7 @@
 //! parsing and error-reporting rules stay identical between the two.
 
 use silvestre_core::effects::{BrightnessFilter, ContrastFilter, GrayscaleFilter, InvertFilter};
-use silvestre_core::filters::Filter;
+use silvestre_core::filters::{BrickFilter, BrickPlan, Filter};
 use silvestre_core::transform::{
     CropFilter, Interpolation, MirrorFilter, MirrorMode, ResizeFilter, RotateFilter,
 };
@@ -19,6 +19,7 @@ pub const KNOWN_FILTERS: &[(&str, &str)] = &[
     ("contrast", "factor (0.0+)"),
     ("grayscale", "no parameters"),
     ("invert", "no parameters"),
+    ("brick", "columns,rows[,max_colors]"),
     ("crop", "x,y,width,height"),
     ("mirror", "h | v | both"),
     ("resize", "width,height"),
@@ -43,6 +44,10 @@ pub fn validate_filter(filter_name: &str, params: &str) -> Result<(), String> {
             Ok(())
         }
         "grayscale" | "invert" => Ok(()),
+        "brick" => {
+            parse_brick(params)?;
+            Ok(())
+        }
         "crop" => {
             parse_crop(params)?;
             Ok(())
@@ -91,6 +96,9 @@ pub fn apply_named_filter(
         "invert" => InvertFilter
             .apply(img)
             .map_err(|e| format!("Invert filter error: {}", e)),
+        "brick" => parse_brick(params)?
+            .apply(img)
+            .map_err(|e| format!("Brick filter error: {}", e)),
         "crop" => {
             let (x, y, w, h) = parse_crop(params)?;
             CropFilter::new(x, y, w, h)
@@ -117,6 +125,14 @@ pub fn apply_named_filter(
         }
         _ => Err(format!("Unknown filter: {}", filter_name)),
     }
+}
+
+/// Compute the brick layout and color counts for `img` using the same
+/// `columns,rows[,max_colors]` params string as the `brick` filter.
+pub fn brick_plan(img: &SilvestreImage, params: &str) -> Result<BrickPlan, String> {
+    parse_brick(params)?
+        .plan(img)
+        .map_err(|e| format!("Brick filter error: {}", e))
 }
 
 /// Convert a `SilvestreImage` into a `DynamicImage` for saving, honoring its
@@ -205,6 +221,27 @@ fn parse_resize(params: &str) -> Result<(u32, u32), String> {
     Ok((w, h))
 }
 
+fn parse_brick(params: &str) -> Result<BrickFilter, String> {
+    let usage = "Brick requires columns,rows[,max_colors]";
+    let parts: Vec<u32> = params
+        .trim()
+        .split(',')
+        .map(|p| p.trim().parse::<u32>())
+        .collect::<Result<_, _>>()
+        .map_err(|_| usage.to_string())?;
+    let filter = match parts.as_slice() {
+        [columns, rows] => BrickFilter::new(*columns, *rows),
+        [columns, rows, max_colors] => {
+            BrickFilter::new(*columns, *rows).with_max_colors(*max_colors)
+        }
+        _ => return Err(usage.to_string()),
+    };
+    if filter.columns() == 0 || filter.rows() == 0 || filter.max_colors() == Some(0) {
+        return Err("Brick columns, rows and max_colors must be at least 1".to_string());
+    }
+    Ok(filter)
+}
+
 fn parse_mirror_mode(params: &str) -> Result<MirrorMode, String> {
     match params.trim().to_lowercase().as_str() {
         "h" | "horizontal" => Ok(MirrorMode::Horizontal),
@@ -235,6 +272,8 @@ mod tests {
         assert!(validate_filter("mirror", "both").is_ok());
         assert!(validate_filter("resize", "20,20").is_ok());
         assert!(validate_filter("rotate", "90").is_ok());
+        assert!(validate_filter("brick", "20,10").is_ok());
+        assert!(validate_filter("brick", " 20 , 10 , 8 ").is_ok());
     }
 
     #[test]
@@ -245,6 +284,10 @@ mod tests {
         assert!(validate_filter("resize", "10").is_err());
         assert!(validate_filter("mirror", "sideways").is_err());
         assert!(validate_filter("rotate", "").is_err());
+        assert!(validate_filter("brick", "20").is_err());
+        assert!(validate_filter("brick", "20,10,8,1").is_err());
+        assert!(validate_filter("brick", "0,10").is_err());
+        assert!(validate_filter("brick", "20,10,0").is_err());
     }
 
     #[test]
@@ -288,6 +331,22 @@ mod tests {
         let out = apply_named_filter(&img, "crop", "0,0,4,5").unwrap();
         assert_eq!(out.width(), 4);
         assert_eq!(out.height(), 5);
+    }
+
+    #[test]
+    fn apply_brick_preserves_dimensions() {
+        let img = test_image(10, 6);
+        let out = apply_named_filter(&img, "brick", "5,3").unwrap();
+        assert_eq!((out.width(), out.height()), (10, 6));
+    }
+
+    #[test]
+    fn brick_plan_counts_bricks() {
+        let img = test_image(10, 6);
+        let plan = brick_plan(&img, "5,3,4").unwrap();
+        // Solid 128-gray at alpha 128, flattened onto white: one color for
+        // every brick.
+        assert_eq!(plan.counts(), vec![([191, 191, 191], 15)]);
     }
 
     #[test]

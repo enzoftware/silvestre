@@ -18,6 +18,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         Screen::Info => draw_info(f, app),
         Screen::Help => draw_help(f, app),
         Screen::Processing => draw_processing(f, app),
+        Screen::BrickReport => draw_brick_report(f, app),
     }
 }
 
@@ -595,6 +596,71 @@ fn draw_help(f: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::White).bg(Color::DarkGray))
         .alignment(Alignment::Center);
     f.render_widget(status, chunks[1]);
+}
+
+fn draw_brick_report(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints(
+            [
+                Constraint::Length(3),
+                Constraint::Min(5),
+                Constraint::Length(2),
+            ]
+            .as_ref(),
+        )
+        .split(f.area());
+
+    let Some(plan) = app.brick_plan.as_ref() else {
+        return;
+    };
+    let counts = plan.counts();
+    let total = plan.columns() * plan.rows();
+
+    let summary = Paragraph::new(format!(
+        "Bricks: {} × {} = {}   Colors: {}",
+        plan.columns(),
+        plan.rows(),
+        total,
+        counts.len()
+    ))
+    .block(
+        Block::default()
+            .title(" Brick Mosaic ")
+            .borders(Borders::ALL),
+    )
+    .style(Style::default().add_modifier(Modifier::BOLD));
+    f.render_widget(summary, chunks[0]);
+
+    let rows: Vec<Line> = counts
+        .iter()
+        .map(|&([r, g, b], count)| {
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("    ", Style::default().bg(Color::Rgb(r, g, b))),
+                Span::raw(format!(
+                    "  #{r:02X}{g:02X}{b:02X}  ({r:>3},{g:>3},{b:>3})  {count:>6}"
+                )),
+            ])
+        })
+        .collect();
+    let table = Paragraph::new(rows)
+        .block(
+            Block::default()
+                .title(" Color counts (most used first) ")
+                .borders(Borders::ALL),
+        )
+        .scroll((app.brick_report_scroll, 0));
+    f.render_widget(table, chunks[1]);
+
+    let status = Paragraph::new(format!(
+        "{}  •  ↑↓ scroll • Esc to return",
+        app.status_message
+    ))
+    .style(Style::default().fg(Color::White).bg(Color::DarkGray))
+    .alignment(Alignment::Center);
+    f.render_widget(status, chunks[2]);
 }
 
 fn draw_processing(f: &mut Frame, _app: &App) {

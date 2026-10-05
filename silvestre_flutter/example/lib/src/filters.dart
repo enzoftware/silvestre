@@ -185,6 +185,41 @@ const filters = <FilterDef>[
       ),
     ],
   ),
+  FilterDef(
+    name: 'brick',
+    label: 'Brick Mosaic',
+    icon: Icons.grid_on,
+    category: FilterCategory.filters,
+    params: [
+      FilterParam(
+        key: 'columns',
+        label: 'Columns',
+        type: ParamType.slider,
+        min: 1,
+        max: 128,
+        step: 1,
+        defaultValue: 32,
+      ),
+      FilterParam(
+        key: 'rows',
+        label: 'Rows',
+        type: ParamType.slider,
+        min: 1,
+        max: 128,
+        step: 1,
+        defaultValue: 32,
+      ),
+      FilterParam(
+        key: 'max_colors',
+        label: 'Max colors',
+        type: ParamType.slider,
+        min: 1,
+        max: 64,
+        step: 1,
+        defaultValue: 16,
+      ),
+    ],
+  ),
 
   // Transforms
   FilterDef(
