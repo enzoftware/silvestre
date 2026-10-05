@@ -51,6 +51,22 @@ int main(void) {
     /* Free the image. */
     silvestre_image_free(img);
 
+    /* Brick mosaic: 2x1 image as one brick averages to a single color. */
+    uint8_t pair[8] = {0, 0, 0, 255, 100, 200, 50, 255};
+    img = silvestre_image_from_buffer(pair, 8, 2, 1);
+    assert(img != NULL);
+    rc = silvestre_apply_filter(img, "brick",
+                                "{\"columns\": 1, \"rows\": 1, \"max_colors\": 4}");
+    assert(rc == 0);
+    px = silvestre_image_pixels(img);
+    assert(px[0] == 50 && px[1] == 100 && px[2] == 25 && px[3] == 255);
+    assert(px[4] == 50 && px[5] == 100 && px[6] == 25 && px[7] == 255);
+
+    /* A grid larger than the image is rejected. */
+    rc = silvestre_apply_filter(img, "brick", "{\"columns\": 3, \"rows\": 1}");
+    assert(rc == -1);
+    silvestre_image_free(img);
+
     /* Free null is a no-op. */
     silvestre_image_free(NULL);
 

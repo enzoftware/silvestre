@@ -39,7 +39,11 @@ class _FilterPanelState extends State<FilterPanel>
       _params.clear();
       for (final p in filter.params) {
         if (p.type == ParamType.slider) {
-          _params[p.key] = p.defaultValue ?? p.min ?? 0;
+          final value = p.defaultValue ?? p.min ?? 0;
+          // Integer-stepped sliders must send ints: Rust rejects `3.0` for
+          // integer params.
+          _params[p.key] =
+              p.step != null && p.step! >= 1 ? value.round() : value;
         } else if (p.type == ParamType.select && p.options != null) {
           _params[p.key] = p.options!.first;
         }
